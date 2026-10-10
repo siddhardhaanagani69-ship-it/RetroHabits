@@ -118,6 +118,24 @@ final class AgendaStore: ObservableObject {
         }
 
         items = deduped.sorted { $0.start < $1.start }
+
+        // Glance summaries from the assistant backend. Raw items are already on
+        // screen, so if the backend is down the agenda still works.
+        if !items.isEmpty {
+            do {
+                let summaries = try await AssistantService.summaries(for: items)
+                for index in items.indices {
+                    guard let s = summaries[items[index].id] else { continue }
+                    items[index].summary = s.summary
+                    items[index].action = s.action.isEmpty ? nil : s.action
+                    items[index].urgency = s.urgency
+                    if items[index].courseName == nil { items[index].courseName = s.course }
+                }
+            } catch {
+                errors.append("Assistant: \(error.localizedDescription)")
+            }
+        }
+
         lastRefreshed = Date()
         isLoading = false
 

@@ -192,7 +192,7 @@ struct AgendaView: View {
                             .foregroundStyle(item.source.tint)
                             .lineLimit(1)
                     }
-                    Text(item.title)
+                    Text(item.summary ?? item.title)
                         .font(.comic(15))
                         .foregroundStyle(item.isSubmitted ? Comic.ink.opacity(0.55) : Comic.ink)
                         .strikethrough(item.isSubmitted, color: Comic.blue)
@@ -200,7 +200,17 @@ struct AgendaView: View {
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
 
+                    if let action = item.action, !item.isSubmitted {
+                        Label(action, systemImage: "arrow.right.circle.fill")
+                            .font(.comic(12))
+                            .foregroundStyle(Comic.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
                     HStack(spacing: 6) {
+                        if item.urgency == 3 && !item.isSubmitted {
+                            statusTag("URGENT", Comic.red)
+                        }
                         if item.isSubmitted {
                             statusTag("TURNED IN", Comic.blue)
                         } else if item.isMissing {
@@ -283,6 +293,12 @@ struct EventDetailView: View {
 
                     ComicPanel {
                         VStack(alignment: .leading, spacing: 10) {
+                            if let summary = item.summary {
+                                detailRow(icon: "sparkles", label: "TL;DR", value: summary)
+                            }
+                            if let action = item.action {
+                                detailRow(icon: "arrow.right.circle.fill", label: "TO DO", value: action)
+                            }
                             detailRow(icon: "clock.fill", label: "WHEN", value: whenText)
                             detailRow(icon: item.kind.symbol, label: "TYPE", value: item.kind.label.capitalized)
                             if let location = item.location {

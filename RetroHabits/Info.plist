@@ -17,6 +17,13 @@
 	<array>
 		<string>com.sid.retrohabits.refresh</string>
 	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>RetroHabits talks to your assistant server on this Wi-Fi to summarize your agenda.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>RetroHabits shows events from your iPhone calendars (Apple Calendar and any synced account, like your school email) in your daily agenda.</string>
 </dict>

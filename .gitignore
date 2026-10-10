@@ -4,3 +4,8 @@ xcuserdata/
 DerivedData/
 build/
 *.xcworkspace/xcuserdata/
+
+# backend secrets / env
+.env
+.venv/
+__pycache__/

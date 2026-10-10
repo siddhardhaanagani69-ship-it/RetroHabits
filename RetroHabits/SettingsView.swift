@@ -6,6 +6,8 @@ struct SettingsView: View {
     @ObservedObject private var prefs = AlertPreferences.shared
     @ObservedObject private var scheduler = NotificationScheduler.shared
 
+    @AppStorage("backend_url") private var backendURL = ""
+
     private let hours = Array(0...23)
 
     // Body is deliberately split into small computed views — one giant
@@ -14,6 +16,7 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 ComicHeader(title: "HEADQUARTERS", subtitle: "Wire up your data sources.")
+                assistantPanel
                 canvasTokenPanel
                 canvasFeedPanel
                 calendarPanel
@@ -39,6 +42,31 @@ struct SettingsView: View {
         .onChange(of: prefs.watchHour) { _, _ in rescheduleAlerts() }
         .onChange(of: prefs.watchWindowDays) { _, _ in rescheduleAlerts() }
         .onChange(of: prefs.profile) { _, _ in rescheduleAlerts() }
+    }
+
+    // MARK: Assistant server
+
+    private var assistantPanel: some View {
+        ComicPanel(tilt: 0.3) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("ASSISTANT SERVER")
+                    .font(.bangers(20))
+                    .foregroundStyle(Comic.orange)
+                TextField(AssistantService.defaultURL, text: $backendURL)
+                    .font(.comicLight(13))
+                    .foregroundStyle(Comic.ink)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.URL)
+                    .padding(10)
+                    .background(Comic.paper)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2))
+                Text("Summarizes your agenda into glance cards. Simulator: leave blank. iPhone: your Mac's address on the same Wi-Fi, like http://Sids-MacBook.local:8000.")
+                    .font(.comicLight(12))
+                    .foregroundStyle(Comic.ink.opacity(0.65))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     // MARK: Canvas token

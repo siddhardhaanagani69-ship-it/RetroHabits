@@ -154,6 +154,11 @@ struct AgendaItem: Identifiable, Equatable {
     var isGraded: Bool = false
     var pointsPossible: Double?
 
+    // Assistant glance card (nil until the backend has summarized it).
+    var summary: String?
+    var action: String?
+    var urgency: Int?
+
     var pointsText: String? {
         guard let points = pointsPossible, points > 0 else { return nil }
         let whole = points.rounded()
