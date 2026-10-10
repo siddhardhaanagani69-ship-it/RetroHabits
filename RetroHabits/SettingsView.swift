@@ -61,6 +61,14 @@ struct SettingsView: View {
                     .padding(10)
                     .background(Comic.paper)
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2))
+                SecureField("Server token (API_TOKEN)", text: tokenBinding)
+                    .font(.comicLight(13))
+                    .foregroundStyle(Comic.ink)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .padding(10)
+                    .background(Comic.paper)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2))
                 Text("Summarizes your agenda into glance cards. Simulator: leave blank. iPhone: your Mac's address on the same Wi-Fi, like http://Sids-MacBook.local:8000.")
                     .font(.comicLight(12))
                     .foregroundStyle(Comic.ink.opacity(0.65))
@@ -335,6 +343,10 @@ struct SettingsView: View {
                 preferences: prefs
             )
         }
+    }
+
+    private var tokenBinding: Binding<String> {
+        Binding(get: { AssistantService.token }, set: { AssistantService.token = $0 })
     }
 
     private var canvasFeedBinding: Binding<String> {

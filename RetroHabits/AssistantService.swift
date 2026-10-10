@@ -12,6 +12,20 @@ enum AssistantService {
         return URL(string: text.isEmpty ? defaultURL : text)
     }
 
+    /// Shared secret the server checks (API_TOKEN in backend/.env). Kept in the Keychain.
+    static var token: String {
+        get { Keychain.data(forKey: "backend_token").flatMap { String(data: $0, encoding: .utf8) } ?? "" }
+        set {
+            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { Keychain.delete(forKey: "backend_token") }
+            else { Keychain.set(Data(trimmed.utf8), forKey: "backend_token") }
+        }
+    }
+
+    private static func authorize(_ request: inout URLRequest) {
+        if !token.isEmpty { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+    }
+
     struct Summary: Decodable {
         let id: String
         let summary: String
@@ -37,6 +51,7 @@ enum AssistantService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         // First run summarizes everything in one Gemini call; later runs hit the cache.
         request.timeoutInterval = 60
+        authorize(&request)
 
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -92,6 +107,7 @@ enum AssistantService {
         guard let url = components.url else { throw URLError(.badURL) }
         var request = URLRequest(url: url)
         request.timeoutInterval = 60
+        authorize(&request)
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw URLError(.badServerResponse)
@@ -121,6 +137,7 @@ enum AssistantService {
         guard let base = baseURL else { throw URLError(.badURL) }
         var request = URLRequest(url: base.appendingPathComponent("mail"))
         request.timeoutInterval = 60
+        authorize(&request)
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw URLError(.badServerResponse)
@@ -150,6 +167,7 @@ enum AssistantService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 60
+        authorize(&request)
         request.httpBody = try JSONEncoder().encode(
             Body(message: message, history: history, tz: TimeZone.current.identifier))
 
@@ -184,6 +202,7 @@ enum AssistantService {
 
         var request = URLRequest(url: url)
         request.timeoutInterval = 30
+        authorize(&request)
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw URLError(.badServerResponse)
@@ -199,6 +218,7 @@ enum AssistantService {
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 60
+        authorize(&request)
 
         var body = Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"audio\"; filename=\"note.wav\"\r\nContent-Type: audio/wav\r\n\r\n".utf8)
         body += try Data(contentsOf: fileURL)

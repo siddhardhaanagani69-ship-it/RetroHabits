@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import secrets
 import urllib.error
 import urllib.request
 from datetime import datetime, time, timedelta
@@ -17,7 +18,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import psycopg
 from backboard import BackboardClient, BackboardError
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response, UploadFile
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, UploadFile
 from google import genai
 from google.genai import types
 from psycopg.types.json import Jsonb
@@ -31,7 +32,21 @@ gemini = genai.Client()
 backboard = BackboardClient(api_key=os.getenv("BACKBOARD_API_KEY", ""))
 log = logging.getLogger("uvicorn.error")
 
-app = FastAPI(title="RetroHabits assistant")
+API_TOKEN = os.getenv("API_TOKEN")
+
+
+def require_token(request: Request) -> None:
+    """Everything but /health needs `Authorization: Bearer <API_TOKEN>` once a token
+    is set. The data behind this API is personal (agenda, email, memories) and every
+    call spends model credits, so a public server must not be open."""
+    if not API_TOKEN or request.url.path == "/health":
+        return
+    sent = request.headers.get("authorization", "").removeprefix("Bearer ")
+    if not secrets.compare_digest(sent.encode(), API_TOKEN.encode()):
+        raise HTTPException(401, "Missing or wrong API token")
+
+
+app = FastAPI(title="RetroHabits assistant", dependencies=[Depends(require_token)])
 
 
 @app.get("/health")
