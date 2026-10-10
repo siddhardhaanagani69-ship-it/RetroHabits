@@ -28,6 +28,7 @@ struct AgendaView: View {
             LazyVStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
                     ComicHeader(title: "THE DAILY", subtitle: "Your missions, assembled.")
+                    BriefingButton()
                     Button {
                         Task { await agenda.refresh() }
                     } label: {

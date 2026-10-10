@@ -81,6 +81,24 @@ enum AssistantService {
         let mood: String?
     }
 
+    // MARK: Spoken briefing
+
+    /// MP3 of today's briefing, written by Gemini and read by ElevenLabs.
+    static func briefingAudio() async throws -> Data {
+        guard let base = baseURL,
+              var components = URLComponents(url: base.appendingPathComponent("briefing"), resolvingAgainstBaseURL: false)
+        else { throw URLError(.badURL) }
+        components.queryItems = [URLQueryItem(name: "tz", value: TimeZone.current.identifier)]
+        guard let url = components.url else { throw URLError(.badURL) }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 60
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return data
+    }
+
     // MARK: Inbox
 
     struct MailBrief: Decodable, Identifiable {

@@ -1,9 +1,12 @@
+import asyncio
 import email
 import imaplib
 import json
 import logging
-import re
 import os
+import re
+import urllib.error
+import urllib.request
 from datetime import datetime, time, timedelta
 from email import policy
 from email.utils import parsedate_to_datetime
@@ -14,7 +17,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import psycopg
 from backboard import BackboardClient, BackboardError
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException, Response, UploadFile
 from google import genai
 from google.genai import types
 from psycopg.types.json import Jsonb
@@ -419,3 +422,54 @@ def mail() -> list[MailBrief]:
                   received=by_id[s.id][0].start or datetime.now().astimezone())
         for s in summarize([item for item, _ in parsed])
     ]
+
+
+# MARK: - Spoken briefing (ElevenLabs)
+
+BRIEFING_PROMPT = """Write a spoken daily briefing for this student, to be read aloud by a voice assistant.
+Under 90 words. Warm, upbeat, direct. Cover what matters today and tomorrow, the most urgent to-do first,
+and one line on their training from the logs if there is any. No markdown, lists, emojis or URLs.
+
+{context}"""
+ELEVENLABS_MODEL = os.getenv("ELEVENLABS_MODEL", "eleven_multilingual_v2")
+_voice_id: str | None = os.getenv("ELEVENLABS_VOICE_ID") or None
+
+
+def _elevenlabs(path: str, body: dict | None = None) -> bytes:
+    req = urllib.request.Request(
+        f"https://api.elevenlabs.io{path}",
+        data=json.dumps(body).encode() if body else None,
+        headers={"xi-api-key": os.getenv("ELEVENLABS_API_KEY", ""), "Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return r.read()
+
+
+def _speak(text: str) -> bytes:
+    global _voice_id
+    if _voice_id is None:  # no voice configured: use the account's first voice
+        _voice_id = json.loads(_elevenlabs("/v1/voices"))["voices"][0]["voice_id"]
+    return _elevenlabs(f"/v1/text-to-speech/{_voice_id}?output_format=mp3_44100_128",
+                       {"text": text, "model_id": ELEVENLABS_MODEL})
+
+
+async def briefing_text(zone: ZoneInfo) -> str:
+    resp = await gemini.aio.models.generate_content(
+        model=GEMINI_MODEL, contents=BRIEFING_PROMPT.format(context=_context(zone)))
+    return (resp.text or "").strip()
+
+
+@app.get("/briefing")
+async def briefing(tz: str = "UTC") -> Response:
+    """Today's agenda and training, as an MP3 read by ElevenLabs."""
+    if not os.getenv("ELEVENLABS_API_KEY", "").startswith("sk_"):
+        raise HTTPException(503, "ElevenLabs isn't set up (ELEVENLABS_API_KEY should start with sk_)")
+    text = await briefing_text(_zone(tz))
+    if not text:
+        raise HTTPException(502, "Couldn't write the briefing")
+    try:
+        audio = await asyncio.to_thread(_speak, text)
+    except urllib.error.HTTPError as e:
+        raise HTTPException(502, f"ElevenLabs error {e.code}: {e.read()[:200].decode(errors='replace')}")
+    return Response(audio, media_type="audio/mpeg")
+
