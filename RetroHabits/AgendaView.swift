@@ -74,6 +74,8 @@ struct AgendaView: View {
 
     @ViewBuilder
     private var scheduleContent: some View {
+        InboxPanel()
+
         ForEach(agenda.errors, id: \.self) { error in
             ComicPanel(fill: Comic.yellow) {
                 Label(error, systemImage: "exclamationmark.triangle.fill")

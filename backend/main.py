@@ -1,7 +1,12 @@
+import email
+import imaplib
 import json
 import logging
+import re
 import os
 from datetime import datetime, time, timedelta
+from email import policy
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -62,7 +67,8 @@ PROMPT = """You turn noisy calendar, Canvas and Teams items into glanceable card
 For every item return, keeping its exact id:
 - summary: what it actually is, max 12 words. Drop course codes, section numbers, URLs and boilerplate.
 - action: the concrete thing to do, max 10 words, imperative ("Submit lab report"). Empty string if nothing to do.
-- urgency: 3 if due or happening within 24 hours, 2 within 3 days, else 1.
+- urgency: 3 if something must be done or attended within 24 hours, 2 within 3 days, else 1.
+  Pure FYI with nothing to do is always 1.
 - course: short course name like "CHEM 1331" if you can tell, else null.
 
 Current time: {now}
@@ -353,3 +359,63 @@ async def chat(body: ChatIn) -> ChatOut:
         raise HTTPException(502, "The assistant didn't answer")
     await remember(body.message)
     return ChatOut(reply=reply)
+
+
+# MARK: - Gmail (incl. Teams notification emails)
+
+class MailBrief(Summary):
+    sender: str
+    received: datetime
+
+
+# Gmail search syntax via IMAP's X-GM-RAW: recent, and skip promos/social noise.
+GMAIL_QUERY = "newer_than:2d -category:promotions -category:social"
+MAX_MAILS = 25
+
+
+def _parse_mail(raw: bytes) -> tuple[Item, str]:
+    """(agenda-style item, sender)"""
+    msg = email.message_from_bytes(raw, policy=policy.default)
+    part = msg.get_body(preferencelist=("plain", "html"))
+    body = part.get_content() if part else ""
+    if part is not None and part.get_content_type() == "text/html":
+        body = re.sub(r"<(style|script)[^>]*>.*?</\1>|<[^>]+>", " ", body, flags=re.S | re.I)
+    body = re.sub(r"\s+", " ", body).strip()
+    try:
+        received = parsedate_to_datetime(msg["Date"])
+    except (TypeError, ValueError):
+        received = None
+    sender = str(msg["From"] or "")
+    return Item(
+        id="gmail-" + (msg["Message-ID"] or f"{msg['Subject']}|{msg['Date']}").strip("<> "),
+        source="gmail",
+        title=str(msg["Subject"] or "(no subject)"),
+        start=received,
+        notes=f"From: {sender}\n{body[:1500]}",
+    ), sender
+
+
+@app.get("/mail")
+def mail() -> list[MailBrief]:
+    """Recent important email, summarized like agenda items. Read-only: BODY.PEEK
+    leaves messages unread."""
+    address, password = os.getenv("GMAIL_ADDRESS"), os.getenv("GMAIL_APP_PASSWORD")
+    if not address or not password:
+        raise HTTPException(503, "Gmail isn't set up (GMAIL_ADDRESS / GMAIL_APP_PASSWORD)")
+    try:
+        with imaplib.IMAP4_SSL("imap.gmail.com") as imap:
+            imap.login(address, password.replace(" ", ""))
+            imap.select("INBOX", readonly=True)
+            _, found = imap.search(None, "X-GM-RAW", f'"{GMAIL_QUERY}"')
+            ids = found[0].split()[-MAX_MAILS:]
+            raws = [imap.fetch(i, "(BODY.PEEK[])")[1][0][1] for i in reversed(ids)]
+    except imaplib.IMAP4.error as e:
+        raise HTTPException(502, f"Gmail login or fetch failed: {e}")
+
+    parsed = [_parse_mail(r) for r in raws]
+    by_id = {item.id: (item, sender) for item, sender in parsed}
+    return [
+        MailBrief(**s.model_dump(), sender=by_id[s.id][1],
+                  received=by_id[s.id][0].start or datetime.now().astimezone())
+        for s in summarize([item for item, _ in parsed])
+    ]

@@ -81,6 +81,36 @@ enum AssistantService {
         let mood: String?
     }
 
+    // MARK: Inbox
+
+    struct MailBrief: Decodable, Identifiable {
+        let id: String
+        let summary: String
+        let action: String
+        let urgency: Int
+        let sender: String
+
+        /// "Microsoft Teams <noreply@…>" → "Microsoft Teams"
+        var senderName: String {
+            let name = sender.components(separatedBy: "<").first?
+                .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\""))) ?? ""
+            return name.isEmpty ? sender : name
+        }
+    }
+
+    /// Recent important email (incl. Teams notifications), summarized. Most urgent first.
+    static func mail() async throws -> [MailBrief] {
+        guard let base = baseURL else { throw URLError(.badURL) }
+        var request = URLRequest(url: base.appendingPathComponent("mail"))
+        request.timeoutInterval = 60
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode([MailBrief].self, from: data)
+            .sorted { $0.urgency > $1.urgency }
+    }
+
     // MARK: Chat
 
     struct Turn: Codable, Identifiable {
