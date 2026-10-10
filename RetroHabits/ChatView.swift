@@ -59,7 +59,8 @@ struct ChatView: View {
         let mine = turn.role == .user
         return HStack {
             if mine { Spacer(minLength: 40) }
-            Text(turn.text)
+            // Gemini replies use light markdown (**bold**); render it instead of showing asterisks.
+            Text(LocalizedStringKey(turn.text))
                 .font(.comic(15))
                 .foregroundStyle(mine ? .white : Comic.ink)
                 .fixedSize(horizontal: false, vertical: true)
