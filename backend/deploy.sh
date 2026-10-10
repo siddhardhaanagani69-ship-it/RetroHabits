@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Push backend code (and .env, minus the Vultr key) to the Vultr server and restart.
 #   ./deploy.sh            code only
-#   ./deploy.sh --env      code + .env
+#   ./deploy.sh --env      code + .env (+ gmail_token.json if present)
 set -e
 cd "$(dirname "$0")"
 HOST=root@45.76.234.93
@@ -12,6 +12,9 @@ COPYFILE_DISABLE=1 tar --no-xattrs -czf /tmp/retrohabits-backend.tgz main.py req
 scp -q -i $KEY /tmp/retrohabits-backend.tgz $HOST:/tmp/backend.tgz
 if [[ "$1" == "--env" ]]; then
   grep -v '^VULTR_API_KEY=' .env | run 'install -m 600 -o app -g app /dev/stdin /opt/retrohabits/.env'
+  if [[ -f gmail_token.json ]]; then
+    run 'install -m 600 -o app -g app /dev/stdin /opt/retrohabits/gmail_token.json' < gmail_token.json
+  fi
 fi
 run 'cd /opt/retrohabits && tar xzf /tmp/backend.tgz && rm /tmp/backend.tgz && chown -R app:app . &&
      sudo -u app .venv/bin/pip install -q -r requirements.txt && systemctl restart retrohabits && sleep 2 &&

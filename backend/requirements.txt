@@ -5,3 +5,4 @@ python-dotenv
 google-genai
 backboard-sdk
 python-multipart
+google-auth-oauthlib

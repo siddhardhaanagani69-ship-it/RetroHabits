@@ -1,6 +1,6 @@
 import asyncio
+import base64
 import email
-import imaplib
 import json
 import logging
 import os
@@ -18,8 +18,12 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import psycopg
 from backboard import BackboardClient, BackboardError
 from dotenv import load_dotenv
+import requests
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, UploadFile
 from google import genai
+from google.auth.exceptions import RefreshError
+from google.auth.transport.requests import AuthorizedSession
+from google.oauth2.credentials import Credentials
 from google.genai import types
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel
@@ -386,9 +390,24 @@ class MailBrief(Summary):
     received: datetime
 
 
-# Gmail search syntax via IMAP's X-GM-RAW: recent, and skip promos/social noise.
-GMAIL_QUERY = "newer_than:2d -category:promotions -category:social"
+# Gmail search syntax: recent inbox mail, minus promos/social noise.
+GMAIL_QUERY = "in:inbox newer_than:2d -category:promotions -category:social"
 MAX_MAILS = 25
+# Read-only: this server can never send, delete or change mail.
+GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+GMAIL_TOKEN = Path(__file__).with_name("gmail_token.json")  # written by gmail_auth.py
+GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
+_gmail: AuthorizedSession | None = None
+
+
+def _gmail_session() -> AuthorizedSession:
+    """Session that refreshes its own access token from the saved refresh token."""
+    global _gmail
+    if _gmail is None:
+        if not GMAIL_TOKEN.exists():
+            raise HTTPException(503, "Gmail isn't connected (run gmail_auth.py)")
+        _gmail = AuthorizedSession(Credentials.from_authorized_user_file(str(GMAIL_TOKEN), GMAIL_SCOPES))
+    return _gmail
 
 
 def _parse_mail(raw: bytes) -> tuple[Item, str]:
@@ -415,20 +434,20 @@ def _parse_mail(raw: bytes) -> tuple[Item, str]:
 
 @app.get("/mail")
 def mail() -> list[MailBrief]:
-    """Recent important email, summarized like agenda items. Read-only: BODY.PEEK
-    leaves messages unread."""
-    address, password = os.getenv("GMAIL_ADDRESS"), os.getenv("GMAIL_APP_PASSWORD")
-    if not address or not password:
-        raise HTTPException(503, "Gmail isn't set up (GMAIL_ADDRESS / GMAIL_APP_PASSWORD)")
+    """Recent important email, summarized like agenda items (read-only Gmail API)."""
+    session = _gmail_session()
     try:
-        with imaplib.IMAP4_SSL("imap.gmail.com") as imap:
-            imap.login(address, password.replace(" ", ""))
-            imap.select("INBOX", readonly=True)
-            _, found = imap.search(None, "X-GM-RAW", f'"{GMAIL_QUERY}"')
-            ids = found[0].split()[-MAX_MAILS:]
-            raws = [imap.fetch(i, "(BODY.PEEK[])")[1][0][1] for i in reversed(ids)]
-    except imaplib.IMAP4.error as e:
-        raise HTTPException(502, f"Gmail login or fetch failed: {e}")
+        found = session.get(GMAIL_API, params={"q": GMAIL_QUERY, "maxResults": MAX_MAILS}, timeout=20)
+        found.raise_for_status()
+        raws = []
+        for ref in found.json().get("messages", []):
+            msg = session.get(f"{GMAIL_API}/{ref['id']}", params={"format": "raw"}, timeout=20)
+            msg.raise_for_status()
+            raws.append(base64.urlsafe_b64decode(msg.json()["raw"]))
+    except RefreshError:
+        raise HTTPException(502, "Gmail sign-in expired or was revoked — run gmail_auth.py again")
+    except requests.RequestException as e:
+        raise HTTPException(502, f"Gmail fetch failed: {e}")
 
     parsed = [_parse_mail(r) for r in raws]
     by_id = {item.id: (item, sender) for item, sender in parsed}
