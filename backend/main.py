@@ -1,8 +1,10 @@
+import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from pathlib import Path
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import psycopg
 from backboard import BackboardClient, BackboardError
@@ -200,3 +202,66 @@ async def log_voice_note(audio: UploadFile) -> ParsedLog:
     except BackboardError as e:
         log.warning("Backboard memory write failed: %s", e)
     return parsed
+
+
+# MARK: - Weekly recall
+
+class Recall(BaseModel):
+    day: str | None            # "Saturday, Oct 3" — the session being recalled
+    logs: list[dict]           # what was logged that day (title, exercises, mood, ...)
+    suggestion: str | None     # Gemini's take on what to do today
+
+
+RECALL_PROMPT = """The student is about to repeat their {weekday} routine. Last time ({day}) they logged:
+{logs}
+
+Things you remember about them that may matter (injuries, goals, feelings):
+{memories}
+
+In at most 2 short sentences, suggest what to do today: repeat, progress (be specific, e.g. +5 lb or +1 rep),
+or ease off if a memory says so. Talk to them directly, no preamble."""
+
+
+@app.get("/recall")
+async def recall(tz: str = "UTC") -> Recall:
+    """The most recent session on today's weekday in the last 4 weeks, plus a suggestion."""
+    try:
+        zone = ZoneInfo(tz)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise HTTPException(400, f"Unknown time zone: {tz}")
+    today = datetime.now(zone).date()
+    since = datetime.combine(today - timedelta(days=28), time.min, zone)
+    until = datetime.combine(today, time.min, zone)
+
+    # A time-bounded scan on the hypertable only touches the last few chunks.
+    with psycopg.connect(DB) as conn:
+        rows = conn.execute(
+            """select ts, kind, raw_text, data from logs
+               where ts >= %s and ts < %s and extract(isodow from ts at time zone %s) = %s
+               order by ts""",
+            (since, until, tz, today.isoweekday()),
+        ).fetchall()
+    if not rows:
+        return Recall(day=None, logs=[], suggestion=None)
+
+    last_date = rows[-1][0].astimezone(zone).date()
+    logs = [{"kind": kind, "transcript": text, **data}
+            for ts, kind, text, data in rows if ts.astimezone(zone).date() == last_date]
+    for entry in logs:
+        entry.pop("memory", None)  # already phrased for Backboard; noise here
+
+    memories = "none"
+    try:
+        found = await backboard.search_memories(
+            await assistant_id(), query=" ".join(l["title"] for l in logs), limit=5)
+        memories = "\n".join(f"- {m['content']}" for m in found.get("memories", [])) or "none"
+    except BackboardError as e:
+        log.warning("Backboard memory search failed: %s", e)
+
+    day = last_date.strftime("%A, %b %-d")
+    resp = await gemini.aio.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=RECALL_PROMPT.format(weekday=today.strftime("%A"), day=day,
+                                      logs=json.dumps(logs), memories=memories),
+    )
+    return Recall(day=day, logs=logs, suggestion=(resp.text or "").strip() or None)

@@ -19,6 +19,7 @@ struct HabitsView: View {
                         progressPanel
                     }
 
+                    RecallPanel()
                     VoiceLogPanel()
 
                     if store.habits.isEmpty {

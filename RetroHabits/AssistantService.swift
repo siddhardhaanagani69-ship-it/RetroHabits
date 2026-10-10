@@ -81,6 +81,37 @@ enum AssistantService {
         let mood: String?
     }
 
+    // MARK: Weekly recall
+
+    struct Recall: Decodable {
+        struct Session: Decodable {
+            let title: String
+            let exercises: [ParsedLog.Exercise]?
+            let mood: String?
+        }
+        /// e.g. "Saturday, Oct 3" — nil when there's nothing on this weekday yet.
+        let day: String?
+        let logs: [Session]
+        let suggestion: String?
+    }
+
+    /// What you did on this weekday last time, and what to do today.
+    static func recall() async throws -> Recall {
+        guard let base = baseURL,
+              var components = URLComponents(url: base.appendingPathComponent("recall"), resolvingAgainstBaseURL: false)
+        else { throw URLError(.badURL) }
+        components.queryItems = [URLQueryItem(name: "tz", value: TimeZone.current.identifier)]
+        guard let url = components.url else { throw URLError(.badURL) }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 30
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode(Recall.self, from: data)
+    }
+
     /// Uploads a recorded WAV note; the backend transcribes it, stores it and remembers it.
     static func log(audioAt fileURL: URL) async throws -> ParsedLog {
         guard let base = baseURL else { throw URLError(.badURL) }
