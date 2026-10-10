@@ -3,3 +3,5 @@ uvicorn[standard]
 psycopg[binary]
 python-dotenv
 google-genai
+backboard-sdk
+python-multipart

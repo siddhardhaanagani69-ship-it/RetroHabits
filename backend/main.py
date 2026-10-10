@@ -1,11 +1,16 @@
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 import psycopg
+from backboard import BackboardClient, BackboardError
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, UploadFile
 from google import genai
+from google.genai import types
+from psycopg.types.json import Jsonb
 from pydantic import BaseModel
 
 load_dotenv(Path(__file__).with_name(".env"))
@@ -13,6 +18,8 @@ DB = os.getenv("DATABASE_URL")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 # One shared client: a throwaway Client() gets garbage-collected mid-request.
 gemini = genai.Client()
+backboard = BackboardClient(api_key=os.getenv("BACKBOARD_API_KEY", ""))
+log = logging.getLogger("uvicorn.error")
 
 app = FastAPI(title="RetroHabits assistant")
 
@@ -113,3 +120,83 @@ def _ask_gemini(items: list[Item]) -> list[Summary]:
     )
     wanted = {i.id for i in items}
     return [s for s in (resp.parsed or []) if s.id in wanted]  # Gemini can drop or invent ids
+
+
+# MARK: - Voice log
+
+class Exercise(BaseModel):
+    name: str
+    sets: int | None = None
+    reps: int | None = None
+    weight: float | None = None
+    unit: str | None = None       # lb | kg
+    minutes: float | None = None  # cardio / timed work
+
+
+class ParsedLog(BaseModel):
+    kind: Literal["workout", "study", "mood", "note"]
+    title: str                    # 2-5 words, e.g. "Leg day"
+    transcript: str
+    exercises: list[Exercise]
+    mood: str | None
+    memory: str                   # one factual sentence for long-term memory
+
+
+LOG_PROMPT = """This is a quick voice note from a student logging their day. Transcribe it, then extract:
+- kind: workout, study, mood or note
+- title: 2-5 words ("Leg day", "DB project work")
+- exercises: every exercise mentioned, with sets, reps, weight, unit and minutes when said. Empty list if not a workout.
+- mood: one or two words if they say how they feel, else null
+- memory: one factual sentence worth remembering long-term, naming the weekday,
+  e.g. "On Tuesday did leg day: squats 3x8 at 135 lb, felt strong."
+Today is {today}."""
+
+ASSISTANT_PROMPT = (
+    "You are a personal assistant for a university student. You remember their workouts, "
+    "study sessions, plans and feelings, and give short, practical advice grounded in that history."
+)
+MAX_AUDIO_BYTES = 10 * 1024 * 1024  # ~5 min of 16 kHz WAV
+_assistant_id: str | None = None
+
+
+async def assistant_id() -> str:
+    """The one Backboard assistant that holds this user's memory (created on first use)."""
+    global _assistant_id
+    if _assistant_id is None:
+        found = await backboard.list_assistants(name="RetroHabits")
+        a = found[0] if found else await backboard.create_assistant(
+            name="RetroHabits", system_prompt=ASSISTANT_PROMPT)
+        _assistant_id = str(a.assistant_id)
+    return _assistant_id
+
+
+@app.post("/log")
+async def log_voice_note(audio: UploadFile) -> ParsedLog:
+    data = await audio.read()
+    if not data or len(data) > MAX_AUDIO_BYTES:
+        raise HTTPException(413, "Audio missing or longer than ~5 minutes")
+
+    resp = await gemini.aio.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=[
+            types.Part.from_bytes(data=data, mime_type=audio.content_type or "audio/wav"),
+            LOG_PROMPT.format(today=datetime.now().astimezone().strftime("%A %B %d %Y, %H:%M")),
+        ],
+        config={"response_mime_type": "application/json", "response_schema": ParsedLog},
+    )
+    parsed: ParsedLog | None = resp.parsed
+    if parsed is None:
+        raise HTTPException(502, "Couldn't understand the note")
+
+    # Tiger is the source of truth; Backboard memory is best-effort on top.
+    with psycopg.connect(DB) as conn:
+        conn.execute(
+            "insert into logs (kind, raw_text, data) values (%s, %s, %s)",
+            (parsed.kind, parsed.transcript, Jsonb(parsed.model_dump(exclude={"kind", "transcript"}))),
+        )
+    try:
+        await backboard.add_memory(await assistant_id(), content=parsed.memory,
+                                   metadata={"kind": parsed.kind, "title": parsed.title})
+    except BackboardError as e:
+        log.warning("Backboard memory write failed: %s", e)
+    return parsed

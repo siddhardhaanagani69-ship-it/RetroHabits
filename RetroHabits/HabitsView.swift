@@ -19,6 +19,8 @@ struct HabitsView: View {
                         progressPanel
                     }
 
+                    VoiceLogPanel()
+
                     if store.habits.isEmpty {
                         ComicPanel(tilt: -0.8) {
                             VStack(alignment: .leading, spacing: 8) {
