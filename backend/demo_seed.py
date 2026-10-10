@@ -54,6 +54,9 @@ def memories(today: datetime) -> list[str]:
         "Is working toward squatting 155 lb by the end of the semester.",
         "Feels stressed about the COSC 3380 database project milestone.",
         "Wants to get better at SQL joins and query optimization.",
+        # Campus Capture demo: the flyer should match the first and ignore the second.
+        "Is interested in robotics and wants to build a robot arm.",
+        "Roommate Alex is really into robotics competitions.",
     ]
 
 
