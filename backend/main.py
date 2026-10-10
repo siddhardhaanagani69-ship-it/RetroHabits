@@ -225,10 +225,7 @@ or ease off if a memory says so. Talk to them directly, no preamble."""
 @app.get("/recall")
 async def recall(tz: str = "UTC") -> Recall:
     """The most recent session on today's weekday in the last 4 weeks, plus a suggestion."""
-    try:
-        zone = ZoneInfo(tz)
-    except (ZoneInfoNotFoundError, ValueError):
-        raise HTTPException(400, f"Unknown time zone: {tz}")
+    zone = _zone(tz)
     today = datetime.now(zone).date()
     since = datetime.combine(today - timedelta(days=28), time.min, zone)
     until = datetime.combine(today, time.min, zone)
@@ -265,3 +262,94 @@ async def recall(tz: str = "UTC") -> Recall:
                                       logs=json.dumps(logs), memories=memories),
     )
     return Recall(day=day, logs=logs, suggestion=(resp.text or "").strip() or None)
+
+
+# MARK: - Chat
+
+class Turn(BaseModel):
+    role: Literal["user", "assistant"]
+    text: str
+
+
+class ChatIn(BaseModel):
+    message: str
+    history: list[Turn] = []   # the conversation so far, kept by the app
+    tz: str = "UTC"
+
+
+class ChatOut(BaseModel):
+    reply: str
+
+
+def _zone(tz: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(tz)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise HTTPException(400, f"Unknown time zone: {tz}")
+
+
+def _context(zone: ZoneInfo) -> str:
+    """What's coming up and what was logged lately, as plain text for the model."""
+    now = datetime.now(zone)
+    with psycopg.connect(DB) as conn:
+        items = conn.execute(
+            """select start_at, coalesce(summary, title), action from items
+               where start_at >= %s and start_at < %s and not done order by start_at limit 30""",
+            (now - timedelta(hours=2), now + timedelta(days=4)),
+        ).fetchall()
+        logs = conn.execute(
+            "select ts, kind, data->>'title', raw_text from logs where ts >= %s order by ts",
+            (now - timedelta(days=7),),
+        ).fetchall()
+    agenda = "\n".join(
+        f"- {s.astimezone(zone):%a %b %d %H:%M}: {summary}" + (f" (to do: {action})" if action else "")
+        for s, summary, action in items) or "- nothing scheduled"
+    recent = "\n".join(
+        f"- {ts.astimezone(zone):%a %b %d}: {kind} '{title}': {text}" for ts, kind, title, text in logs
+    ) or "- nothing logged"
+    return (f"[Background from the app, not written by the user. Now: {now:%A %B %d %Y, %H:%M}]\n"
+            f"Upcoming:\n{agenda}\n\nLogged in the last 7 days:\n{recent}")
+
+
+_memory_thread: str | None = None
+
+
+async def remember(text: str) -> None:
+    """Let Backboard pull lasting facts out of what the user said. Backboard's free
+    tier covers memory but not LLM chat, so the message is stored, not answered."""
+    global _memory_thread
+    try:
+        if _memory_thread is None:
+            _memory_thread = str((await backboard.create_thread(await assistant_id())).thread_id)
+        await backboard.add_message(_memory_thread, content=text, memory="Auto", send_to_llm="false")
+    except BackboardError as e:
+        log.warning("Backboard memory write failed: %s", e)
+
+
+@app.post("/chat")
+async def chat(body: ChatIn) -> ChatOut:
+    if not body.message.strip() or len(body.message) > 4000:
+        raise HTTPException(400, "Message must be 1-4000 characters")
+    zone = _zone(body.tz)
+
+    memories = "none"
+    try:
+        found = await backboard.search_memories(await assistant_id(), query=body.message, limit=8)
+        memories = "\n".join(f"- {m['content']}" for m in found.get("memories", [])) or "none"
+    except BackboardError as e:
+        log.warning("Backboard memory search failed: %s", e)
+
+    system = (f"{ASSISTANT_PROMPT} Keep answers short and conversational; this is a phone chat.\n\n"
+              f"{_context(zone)}\n\nWhat you remember about them:\n{memories}")
+    turns = body.history[-20:] + [Turn(role="user", text=body.message)]
+    resp = await gemini.aio.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=[types.Content(role="user" if t.role == "user" else "model", parts=[types.Part(text=t.text)])
+                  for t in turns],
+        config={"system_instruction": system},
+    )
+    reply = (resp.text or "").strip()
+    if not reply:
+        raise HTTPException(502, "The assistant didn't answer")
+    await remember(body.message)
+    return ChatOut(reply=reply)

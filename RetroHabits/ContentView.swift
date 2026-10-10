@@ -3,6 +3,7 @@ import SwiftUI
 enum ComicTab: String, CaseIterable {
     case agenda = "AGENDA"
     case habits = "HABITS"
+    case ask = "ASK"
     case learn = "LEARN"
     case stats = "STATS"
     case settings = "SETUP"
@@ -11,6 +12,7 @@ enum ComicTab: String, CaseIterable {
         switch self {
         case .agenda: return "calendar"
         case .habits: return "checkmark.seal.fill"
+        case .ask: return "bubble.left.and.text.bubble.right.fill"
         case .learn: return "brain.head.profile"
         case .stats: return "chart.bar.fill"
         case .settings: return "gearshape.fill"
@@ -20,6 +22,8 @@ enum ComicTab: String, CaseIterable {
 
 struct ContentView: View {
     @State private var tab: ComicTab = .agenda
+    /// Lives here so switching tabs doesn't wipe the conversation.
+    @State private var chatTurns: [AssistantService.Turn] = []
 
     var body: some View {
         ZStack {
@@ -29,6 +33,7 @@ struct ContentView: View {
                 switch tab {
                 case .agenda: AgendaView()
                 case .habits: HabitsView()
+                case .ask: ChatView(turns: $chatTurns)
                 case .learn: LearnView()
                 case .stats: StatsView()
                 case .settings: SettingsView()

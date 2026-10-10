@@ -81,6 +81,37 @@ enum AssistantService {
         let mood: String?
     }
 
+    // MARK: Chat
+
+    struct Turn: Codable, Identifiable {
+        enum Role: String, Codable { case user, assistant }
+        var id = UUID()
+        let role: Role
+        let text: String
+
+        private enum CodingKeys: String, CodingKey { case role, text }
+    }
+
+    /// The assistant's reply. It sees your agenda, recent logs and long-term memory.
+    static func chat(_ message: String, history: [Turn]) async throws -> String {
+        guard let base = baseURL else { throw URLError(.badURL) }
+        struct Body: Encodable { let message: String; let history: [Turn]; let tz: String }
+        struct Reply: Decodable { let reply: String }
+
+        var request = URLRequest(url: base.appendingPathComponent("chat"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60
+        request.httpBody = try JSONEncoder().encode(
+            Body(message: message, history: history, tz: TimeZone.current.identifier))
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode(Reply.self, from: data).reply
+    }
+
     // MARK: Weekly recall
 
     struct Recall: Decodable {
