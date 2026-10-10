@@ -26,6 +26,7 @@ struct RetroHabitsApp: App {
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
+                HabitStore.shared.refreshReminders()
                 Task { await AgendaStore.shared.refresh() }
             case .background:
                 Self.scheduleBackgroundRefresh()
@@ -62,6 +63,7 @@ struct RetroHabitsApp: App {
         let completion = TaskCompletionGate(task: task)
 
         let work = Task { @MainActor in
+            HabitStore.shared.refreshReminders()
             await AgendaStore.shared.refresh()
             completion.finish(success: true)
         }

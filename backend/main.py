@@ -15,12 +15,15 @@ from pathlib import Path
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+import httpx
 import psycopg
 from backboard import BackboardClient, BackboardError
 from dotenv import load_dotenv
 import requests
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, UploadFile
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, UploadFile
+from fastapi.responses import JSONResponse
 from google import genai
+from google.genai import errors as genai_errors
 from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2.credentials import Credentials
@@ -28,11 +31,52 @@ from google.genai import types
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel
 
+import ripple as rp
+
 load_dotenv(Path(__file__).with_name(".env"))
 DB = os.getenv("DATABASE_URL")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 # One shared client: a throwaway Client() gets garbage-collected mid-request.
-gemini = genai.Client()
+# No hidden SDK retries (they can sleep for minutes on a 429) and a hard timeout:
+# a model that fails or stalls hands over to the next one in GEMINI_MODELS instead.
+gemini = genai.Client(http_options=types.HttpOptions(
+    timeout=45_000, retry_options=types.HttpRetryOptions(attempts=1)))
+# The free tier caps requests per model per day (20 for gemini-3.8-flash), and each
+# model has its own quota, so when one runs out (429) or is retired (404) the next takes over.
+GEMINI_MODELS = [GEMINI_MODEL] + [
+    m for m in os.getenv("GEMINI_FALLBACKS",
+              "gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite").split(",")
+    if m and m != GEMINI_MODEL
+]
+
+
+def _try_next(e: Exception) -> bool:
+    """Retired model (404), out of quota (429), overloaded (5xx) or stalled: try the next model."""
+    return isinstance(e, httpx.TimeoutException) or getattr(e, "code", None) in (404, 429, 500, 503, 504)
+
+
+def _why(e: Exception) -> str:
+    return "timeout" if isinstance(e, httpx.TimeoutException) else str(e.code)
+
+
+async def generate(contents, config=None):
+    for i, model in enumerate(GEMINI_MODELS):
+        try:
+            return await gemini.aio.models.generate_content(model=model, contents=contents, config=config)
+        except (genai_errors.APIError, httpx.TimeoutException) as e:
+            if not _try_next(e) or i == len(GEMINI_MODELS) - 1:
+                raise
+            log.warning("Gemini %s unavailable (%s); falling back to %s", model, _why(e), GEMINI_MODELS[i + 1])
+
+
+def generate_sync(contents, config=None):
+    for i, model in enumerate(GEMINI_MODELS):
+        try:
+            return gemini.models.generate_content(model=model, contents=contents, config=config)
+        except (genai_errors.APIError, httpx.TimeoutException) as e:
+            if not _try_next(e) or i == len(GEMINI_MODELS) - 1:
+                raise
+            log.warning("Gemini %s unavailable (%s); falling back to %s", model, _why(e), GEMINI_MODELS[i + 1])
 backboard = BackboardClient(api_key=os.getenv("BACKBOARD_API_KEY", ""))
 log = logging.getLogger("uvicorn.error")
 
@@ -51,6 +95,15 @@ def require_token(request: Request) -> None:
 
 
 app = FastAPI(title="RetroHabits assistant", dependencies=[Depends(require_token)])
+
+
+@app.exception_handler(genai_errors.APIError)
+async def gemini_failed(request: Request, e: genai_errors.APIError) -> JSONResponse:
+    """Say what went wrong instead of a bare 500."""
+    if e.code == 429:
+        return JSONResponse({"detail": "Gemini's free daily quota is used up on every model. "
+                                       "Try again later or turn on billing for the Gemini API key."}, 503)
+    return JSONResponse({"detail": f"Gemini error {e.code}: {e.message}"}, 502)
 
 
 @app.get("/health")
@@ -140,8 +193,7 @@ def summarize(items: list[Item]) -> list[Summary]:
 def _ask_gemini(items: list[Item]) -> list[Summary]:
     # Notes can be long Canvas/Teams boilerplate; the first part carries the meaning.
     payload = [i.model_copy(update={"notes": (i.notes or "")[:600] or None}) for i in items]
-    resp = gemini.models.generate_content(
-        model=GEMINI_MODEL,
+    resp = generate_sync(
         contents=PROMPT.format(
             now=datetime.now().astimezone().isoformat(timespec="minutes"),
             items="[" + ",".join(p.model_dump_json(exclude_none=True) for p in payload) + "]",
@@ -206,8 +258,7 @@ async def log_voice_note(audio: UploadFile) -> ParsedLog:
     if not data or len(data) > MAX_AUDIO_BYTES:
         raise HTTPException(413, "Audio missing or longer than ~5 minutes")
 
-    resp = await gemini.aio.models.generate_content(
-        model=GEMINI_MODEL,
+    resp = await generate(
         contents=[
             types.Part.from_bytes(data=data, mime_type=audio.content_type or "audio/wav"),
             LOG_PROMPT.format(today=datetime.now().astimezone().strftime("%A %B %d %Y, %H:%M")),
@@ -232,12 +283,40 @@ async def log_voice_note(audio: UploadFile) -> ParsedLog:
     return parsed
 
 
+# MARK: - Memory retrieval (shared, inspectable)
+
+class MemoryRef(BaseModel):
+    """A memory that was handed to the model, so the app can show why it said something."""
+    id: str
+    content: str
+    score: float | None = None
+    weak: bool = False         # loose retrieval match: shown to the user as uncertain
+
+
+WEAK_MATCH = 0.35  # Backboard relevance below this is a loose match
+
+
+async def search_memories(query: str, limit: int) -> list[MemoryRef]:
+    try:
+        found = await backboard.search_memories(await assistant_id(), query=query, limit=limit)
+    except BackboardError as e:
+        log.warning("Backboard memory search failed: %s", e)
+        return []
+    return [MemoryRef(id=m["id"], content=m["content"], score=m.get("score"),
+                      weak=(m.get("score") or 0) < WEAK_MATCH) for m in found.get("memories", [])]
+
+
+def bullets(memories: list[MemoryRef]) -> str:
+    return "\n".join(f"- {m.content}" for m in memories) or "none"
+
+
 # MARK: - Weekly recall
 
 class Recall(BaseModel):
     day: str | None            # "Saturday, Oct 3" — the session being recalled
     logs: list[dict]           # what was logged that day (title, exercises, mood, ...)
     suggestion: str | None     # Gemini's take on what to do today
+    memories_used: list[MemoryRef] = []
 
 
 RECALL_PROMPT = """The student is about to repeat their {weekday} routine. Last time ({day}) they logged:
@@ -275,21 +354,13 @@ async def recall(tz: str = "UTC") -> Recall:
     for entry in logs:
         entry.pop("memory", None)  # already phrased for Backboard; noise here
 
-    memories = "none"
-    try:
-        found = await backboard.search_memories(
-            await assistant_id(), query=" ".join(l["title"] for l in logs), limit=5)
-        memories = "\n".join(f"- {m['content']}" for m in found.get("memories", [])) or "none"
-    except BackboardError as e:
-        log.warning("Backboard memory search failed: %s", e)
-
+    memories = await search_memories(" ".join(l["title"] for l in logs), limit=5)
     day = last_date.strftime("%A, %b %-d")
-    resp = await gemini.aio.models.generate_content(
-        model=GEMINI_MODEL,
+    resp = await generate(
         contents=RECALL_PROMPT.format(weekday=today.strftime("%A"), day=day,
-                                      logs=json.dumps(logs), memories=memories),
+                                      logs=json.dumps(logs), memories=bullets(memories)),
     )
-    return Recall(day=day, logs=logs, suggestion=(resp.text or "").strip() or None)
+    return Recall(day=day, logs=logs, suggestion=(resp.text or "").strip() or None, memories_used=memories)
 
 
 # MARK: - Chat
@@ -307,6 +378,7 @@ class ChatIn(BaseModel):
 
 class ChatOut(BaseModel):
     reply: str
+    memories_used: list[MemoryRef] = []
 
 
 def _zone(tz: str) -> ZoneInfo:
@@ -360,18 +432,12 @@ async def chat(body: ChatIn) -> ChatOut:
         raise HTTPException(400, "Message must be 1-4000 characters")
     zone = _zone(body.tz)
 
-    memories = "none"
-    try:
-        found = await backboard.search_memories(await assistant_id(), query=body.message, limit=8)
-        memories = "\n".join(f"- {m['content']}" for m in found.get("memories", [])) or "none"
-    except BackboardError as e:
-        log.warning("Backboard memory search failed: %s", e)
+    memories = await search_memories(body.message, limit=8)
 
     system = (f"{ASSISTANT_PROMPT} Keep answers short and conversational; this is a phone chat.\n\n"
-              f"{_context(zone)}\n\nWhat you remember about them:\n{memories}")
+              f"{_context(zone)}\n\nWhat you remember about them:\n{bullets(memories)}")
     turns = body.history[-20:] + [Turn(role="user", text=body.message)]
-    resp = await gemini.aio.models.generate_content(
-        model=GEMINI_MODEL,
+    resp = await generate(
         contents=[types.Content(role="user" if t.role == "user" else "model", parts=[types.Part(text=t.text)])
                   for t in turns],
         config={"system_instruction": system},
@@ -380,7 +446,7 @@ async def chat(body: ChatIn) -> ChatOut:
     if not reply:
         raise HTTPException(502, "The assistant didn't answer")
     await remember(body.message)
-    return ChatOut(reply=reply)
+    return ChatOut(reply=reply, memories_used=memories)
 
 
 # MARK: - Gmail (incl. Teams notification emails)
@@ -488,8 +554,8 @@ def _speak(text: str) -> bytes:
 
 
 async def briefing_text(zone: ZoneInfo) -> str:
-    resp = await gemini.aio.models.generate_content(
-        model=GEMINI_MODEL, contents=BRIEFING_PROMPT.format(context=_context(zone)))
+    resp = await generate(
+        contents=BRIEFING_PROMPT.format(context=_context(zone)))
     return (resp.text or "").strip()
 
 
@@ -507,3 +573,300 @@ async def briefing(tz: str = "UTC") -> Response:
         raise HTTPException(502, f"ElevenLabs error {e.code}: {e.read()[:200].decode(errors='replace')}")
     return Response(audio, media_type="audio/mpeg")
 
+
+
+# MARK: - Ripple Mode
+
+class AgendaIn(BaseModel):
+    id: str
+    title: str
+    start: datetime
+    end: datetime | None = None   # no end = a deadline, which doesn't occupy time
+    all_day: bool = False
+
+
+class PlanIn(BaseModel):
+    """A habit with a planned time, as the app holds it."""
+    id: str
+    name: str
+    weekdays: list[int]           # 1 = Sunday ... 7 = Saturday
+    hour: int
+    minute: int
+    duration: int = 60
+    moves: dict[str, datetime] = {}
+
+
+class RippleIn(BaseModel):
+    change: str
+    agenda: list[AgendaIn]
+    plans: list[PlanIn]
+    tz: str = "UTC"
+
+
+class ParsedChange(BaseModel):
+    kind: Literal["move", "new", "cancel"]
+    target_id: str | None
+    title: str
+    start: datetime | None
+    end: datetime | None
+    hypothetical: bool
+    stated: list[str]
+    assumptions: list[str]
+
+
+RIPPLE_PROMPT = """The student describes a change to their schedule, or asks "what if". Match it to their agenda.
+Return:
+- kind: "move" (an existing item changes time), "new" (something added), "cancel" (an existing item is dropped)
+- target_id: the id of the agenda item it refers to, or null if it's new or you can't tell
+- title: short name of the commitment
+- start / end: ISO 8601 with UTC offset, time zone {tz}. Null if they gave no day or time at all.
+- hypothetical: true for "what if…" or "thinking about…", false for something that actually changed
+- stated: the facts they actually said, as short phrases
+- assumptions: everything you filled in that they did NOT say, e.g. "Assumed 'evening' means 6 PM",
+  "Assumed this Friday, not next". Empty list if nothing was assumed.
+Never invent reasons, feelings or consequences.
+
+Now: {now}
+Agenda for the next 7 days:
+{agenda}
+
+What they said: {change}"""
+
+
+def _block(a: AgendaIn) -> rp.Block | None:
+    if a.all_day or a.end is None or a.end <= a.start:
+        return None
+    return rp.Block(a.id, a.title, a.start, a.end, "calendar")
+
+
+def _span(delta: timedelta) -> str:
+    h, m = divmod(int(delta.total_seconds()) // 60, 60)
+    return f"{h}h{m:02d}" if m else f"{h} hour{'s' if h != 1 else ''}"
+
+
+@app.post("/ripple")
+async def ripple_mode(body: RippleIn) -> dict:
+    """What one change collides with, and where displaced plans could go.
+    Nothing is applied: the app shows this as a hypothetical until the user accepts."""
+    if not body.change.strip() or len(body.change) > 1000:
+        raise HTTPException(400, "Describe the change in 1-1000 characters")
+    zone = _zone(body.tz)
+    now = datetime.now(zone)
+    agenda = {a.id: a for a in body.agenda}
+
+    listing = "\n".join(
+        f"- id={a.id} | {a.title} | {a.start.astimezone(zone):%a %b %d %H:%M}"
+        + (f"-{a.end.astimezone(zone):%H:%M}" if a.end else " (deadline)") for a in body.agenda
+    ) or "- (empty)"
+    resp = await generate(
+        contents=RIPPLE_PROMPT.format(tz=body.tz, now=f"{now:%A %B %d %Y %H:%M}", agenda=listing,
+                                      change=body.change),
+        config={"response_mime_type": "application/json", "response_schema": ParsedChange},
+    )
+    p: ParsedChange | None = resp.parsed
+    if p is None:
+        raise HTTPException(502, "Couldn't understand the change")
+
+    target = agenda.get(p.target_id) if p.target_id else None
+    assumptions = list(p.assumptions)
+    clarify = None
+    change = None
+    if p.kind == "cancel" and target is None:
+        clarify = "Which commitment is cancelled? I couldn't match it to your agenda."
+    elif p.kind != "cancel":
+        if p.start is None:
+            clarify = f"When is “{p.title}”? Add a day and time."
+        else:
+            start = p.start if p.start.tzinfo else p.start.replace(tzinfo=zone)
+            end = p.end if p.end and p.end.tzinfo else (p.end.replace(tzinfo=zone) if p.end else None)
+            if end is None or end <= start:
+                if target and target.end and target.end > target.start:
+                    length = target.end - target.start
+                    assumptions.append(f"Assumed it still lasts {_span(length)}, like before")
+                else:
+                    length = timedelta(hours=1)
+                    assumptions.append("Assumed it lasts 1 hour (no end time given)")
+                end = start + length
+            change = rp.Block("change", p.title, start, end, "change")
+
+    replaced = target.id if target and p.kind in ("move", "cancel") else None
+    plans = [rp.Plan(x.id, x.name, set(x.weekdays), x.hour, x.minute, x.duration, dict(x.moves))
+             for x in body.plans]
+    calendar = [b for b in map(_block, body.agenda) if b]
+    conflicts = rp.ripple(change, replaced, calendar, plans, now, zone) if not clarify else []
+    return {
+        "hypothetical": p.hypothetical,
+        "clarify": clarify,
+        "change": {
+            "kind": p.kind, "title": p.title,
+            "start": change.start if change else None, "end": change.end if change else None,
+            "previous_start": target.start if target else None,
+            "previous_end": target.end if target else None,
+            "stated": p.stated, "assumptions": assumptions,
+        },
+        "conflicts": conflicts,
+    }
+
+
+# MARK: - Campus Capture
+
+class FlyerEvent(BaseModel):
+    is_event: bool
+    title: str
+    start: datetime | None
+    end: datetime | None
+    location: str | None
+    cost: str | None            # exactly as printed ("Free", "$5"), null if the flyer doesn't say
+    organizer: str | None
+    summary: str                # one plain line
+    topics: list[str]           # 1-4 subject words
+    missing: list[str]          # useful details the flyer doesn't give
+    assumptions: list[str]      # anything filled in, e.g. the year
+
+
+class InterestMatch(BaseModel):
+    memory_id: str
+    why: str
+
+
+class InterestCheck(BaseModel):
+    matches: list[InterestMatch]
+
+
+class CaptureContext(BaseModel):
+    agenda: list[AgendaIn] = []
+    plans: list[PlanIn] = []
+    tz: str = "UTC"
+
+
+FLYER_PROMPT = """This is a photo of a campus event flyer or announcement. Extract the event.
+- is_event: false if this isn't an event announcement at all
+- start / end: ISO 8601 with UTC offset in {tz}. Null if not printed. If the year isn't printed,
+  use the next upcoming date and say so in assumptions.
+- cost: exactly as printed, or null if not mentioned. Never guess a price.
+- missing: details a student would need that the flyer does NOT give
+  (e.g. "price", "end time", "room number", "how to sign up")
+- assumptions: anything you filled in that is not printed
+Today is {today}."""
+
+INTEREST_PROMPT = """Event: {title} — {summary} (topics: {topics})
+
+Memories about the student (id: text):
+{memories}
+
+Which memories show the STUDENT THEMSELVES is interested in this event's topic? Only count a memory
+that states the student's own interest, goal or skill. A memory about someone else (a roommate, a
+friend), a loose association, or a guess does not count. Return an empty list if none qualify.
+For each match give the memory id exactly as listed and a short reason quoting the memory."""
+
+MAX_IMAGE_BYTES = 8 * 1024 * 1024
+
+
+@app.post("/capture")
+async def capture(image: UploadFile, context: str = Form("{}")) -> dict:
+    """Flyer photo → event details → does it fit the calendar, match shared interests,
+    and what's missing. Cost is reported as printed; there is no budget check yet."""
+    data = await image.read()
+    if not data or len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(413, "Image missing or larger than 8 MB")
+    ctx = CaptureContext.model_validate_json(context)
+    zone = _zone(ctx.tz)
+    now = datetime.now(zone)
+
+    resp = await generate(
+        contents=[types.Part.from_bytes(data=data, mime_type=image.content_type or "image/jpeg"),
+                  FLYER_PROMPT.format(tz=ctx.tz, today=f"{now:%A %B %d %Y}")],
+        config={"response_mime_type": "application/json", "response_schema": FlyerEvent},
+    )
+    ev: FlyerEvent | None = resp.parsed
+    if ev is None:
+        raise HTTPException(502, "Couldn't read the flyer")
+    if not ev.is_event:
+        return {"event": ev, "conflicts": [], "interests": [], "verdict": ["This doesn't look like an event flyer."]}
+
+    # Calendar fit: the same overlap engine as Ripple Mode.
+    conflicts, assumptions = [], list(ev.assumptions)
+    start = ev.start and (ev.start if ev.start.tzinfo else ev.start.replace(tzinfo=zone))
+    if start:
+        end = ev.end and (ev.end if ev.end.tzinfo else ev.end.replace(tzinfo=zone))
+        if not end or end <= start:
+            end = start + timedelta(hours=1)
+            assumptions.append("Assumed it lasts 1 hour (no end time printed)")
+        ev.start, ev.end = start, end
+        plans = [rp.Plan(x.id, x.name, set(x.weekdays), x.hour, x.minute, x.duration, dict(x.moves))
+                 for x in ctx.plans]
+        calendar = [b for b in map(_block, ctx.agenda) if b]
+        conflicts = rp.ripple(rp.Block("event", ev.title, start, end, "change"), None, calendar, plans, now, zone)
+
+    # Interests: only memories the model cites by id, and only about the student.
+    candidates = await search_memories(f"{ev.title} {' '.join(ev.topics)}", limit=6)
+    interests = []
+    if candidates:
+        check = await generate(
+            contents=INTEREST_PROMPT.format(
+                title=ev.title, summary=ev.summary, topics=", ".join(ev.topics),
+                memories="\n".join(f"{m.id}: {m.content}" for m in candidates)),
+            config={"response_mime_type": "application/json", "response_schema": InterestCheck},
+        )
+        by_id = {m.id: m for m in candidates}
+        interests = [{"memory": by_id[x.memory_id], "why": x.why}
+                     for x in (check.parsed.matches if check.parsed else []) if x.memory_id in by_id]
+
+    # The verdict is assembled from those facts, not written freely by the model.
+    verdict = []
+    if interests:
+        verdict.append(f"Matches something you shared: “{interests[0]['memory'].content}”")
+    else:
+        verdict.append("Nothing you've shared links you to this topic.")
+    if not start:
+        verdict.append("The flyer has no date or time, so I can't check your calendar.")
+    elif conflicts:
+        verdict.append("Overlaps " + ", ".join(f"{c['title']} ({c['start'].astimezone(zone):%a %-I:%M %p})"
+                                               for c in conflicts) + ".")
+    else:
+        verdict.append("Fits your calendar.")
+    verdict.append(f"Cost: {ev.cost}." if ev.cost else "The flyer doesn't say what it costs.")
+    # The cost line above already covers a missing price.
+    other_missing = [m for m in ev.missing if not re.search(r"cost|price|fee", m, re.I)]
+    if other_missing:
+        verdict.append("Missing: " + ", ".join(other_missing) + ".")
+    ev.assumptions = assumptions
+    return {"event": ev, "conflicts": conflicts, "interests": interests, "verdict": verdict}
+
+
+# MARK: - Memory Inspector
+
+class MemoryEdit(BaseModel):
+    content: str
+
+
+@app.get("/memories")
+async def list_memories() -> list[MemoryRef]:
+    aid, out, page = await assistant_id(), [], 1
+    while True:
+        batch = (await backboard.get_memories(aid, page=page, page_size=100)).memories
+        out += [MemoryRef(id=m.id, content=m.content) for m in batch]
+        if len(batch) < 100:
+            return out
+        page += 1
+
+
+@app.put("/memories/{memory_id}")
+async def correct_memory(memory_id: str, body: MemoryEdit) -> MemoryRef:
+    """Rewrite a memory in Backboard itself, so every later recommendation uses the correction."""
+    if not body.content.strip() or len(body.content) > 1000:
+        raise HTTPException(400, "Memory must be 1-1000 characters")
+    try:
+        m = await backboard.update_memory(await assistant_id(), memory_id, content=body.content.strip())
+    except BackboardError as e:
+        raise HTTPException(502, f"Backboard couldn't update it: {e}")
+    return MemoryRef(id=m.id, content=m.content)
+
+
+@app.delete("/memories/{memory_id}")
+async def forget_memory(memory_id: str) -> dict:
+    try:
+        await backboard.delete_memory(await assistant_id(), memory_id)
+    except BackboardError as e:
+        raise HTTPException(502, f"Backboard couldn't delete it: {e}")
+    return {"deleted": memory_id}

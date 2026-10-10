@@ -7,6 +7,7 @@ struct SettingsView: View {
     @ObservedObject private var scheduler = NotificationScheduler.shared
 
     @AppStorage("backend_url") private var backendURL = ""
+    @State private var showingMemories = false
 
     private let hours = Array(0...23)
 
@@ -69,6 +70,11 @@ struct SettingsView: View {
                     .padding(10)
                     .background(Comic.paper)
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2))
+                Button { showingMemories = true } label: {
+                    Label("WHAT I REMEMBER ABOUT YOU", systemImage: "brain").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(ComicButtonStyle())
+                .sheet(isPresented: $showingMemories) { AllMemoriesSheet() }
                 Text("Summarizes your agenda into glance cards. Simulator: leave blank. iPhone: your Mac's address on the same Wi-Fi, like http://Sids-MacBook.local:8000.")
                     .font(.comicLight(12))
                     .foregroundStyle(Comic.ink.opacity(0.65))

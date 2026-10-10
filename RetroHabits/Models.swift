@@ -14,8 +14,16 @@ struct Habit: Identifiable, Codable, Equatable {
     var createdAt = Date()
     /// Days completed, stored as "yyyy-MM-dd" strings in local time.
     var completedDays: Set<String> = []
+    /// How long a session takes — with the reminder time, this makes it a planned
+    /// session that Ripple Mode can check for conflicts. Optional so older saved
+    /// habits (without the key) still decode.
+    var durationMinutes: Int?
+    /// One-off reschedules accepted in Ripple Mode: original day ("yyyy-MM-dd") -> new start.
+    /// Moving a session is a plan change, never a completion.
+    var moves: [String: Date]?
 
     var hasReminder: Bool { reminderHour != nil && reminderMinute != nil }
+    var duration: Int { durationMinutes ?? 60 }
 
     /// Built once — `streak` and the stats grid call this thousands of times
     /// per render, and a fresh DateFormatter each time is very expensive.
@@ -37,7 +45,12 @@ struct Habit: Identifiable, Codable, Equatable {
     }
 
     func isScheduled(on date: Date) -> Bool {
-        scheduledWeekdays.contains(Calendar.current.component(.weekday, from: date))
+        if let moves, !moves.isEmpty {
+            let key = Habit.dayKey(for: date)
+            if moves.values.contains(where: { Habit.dayKey(for: $0) == key }) { return true }
+            if moves[key] != nil { return false }
+        }
+        return scheduledWeekdays.contains(Calendar.current.component(.weekday, from: date))
     }
 
     /// Consecutive scheduled days completed, counting back from today.

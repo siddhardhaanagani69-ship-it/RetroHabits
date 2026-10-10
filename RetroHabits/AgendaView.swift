@@ -4,9 +4,13 @@ struct AgendaView: View {
     @EnvironmentObject var agenda: AgendaStore
     @State private var selectedItem: AgendaItem?
     @State private var mode: Mode = .schedule
+    /// Ripple's input, kept here so Campus Capture can hand it an event.
+    @State private var rippleDraft = ""
 
     enum Mode: String, CaseIterable {
         case schedule = "SCHEDULE"
+        case ripple = "RIPPLE"
+        case capture = "CAPTURE"
         case alerts = "ALERTS"
     }
 
@@ -50,10 +54,15 @@ struct AgendaView: View {
                 }
                 .pickerStyle(.segmented)
 
-                if mode == .schedule {
-                    scheduleContent
-                } else {
-                    AlertsSection()
+                switch mode {
+                case .schedule: scheduleContent
+                case .ripple: RippleView(draft: $rippleDraft)
+                case .capture:
+                    CaptureView { change in
+                        rippleDraft = change
+                        withAnimation(.easeInOut(duration: 0.2)) { mode = .ripple }
+                    }
+                case .alerts: AlertsSection()
                 }
             }
             .padding(.horizontal, 16)

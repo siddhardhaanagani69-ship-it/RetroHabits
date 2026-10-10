@@ -22,6 +22,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Snap a campus event flyer so RetroHabits can check it against your schedule.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Record quick voice notes about your workouts and day so your assistant can log and remember them.</string>
 	<key>NSLocalNetworkUsageDescription</key>

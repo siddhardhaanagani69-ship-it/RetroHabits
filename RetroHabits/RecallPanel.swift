@@ -4,6 +4,7 @@ import SwiftUI
 /// Hidden until there's a past session on this weekday (or if the server is down).
 struct RecallPanel: View {
     @State private var recall: AssistantService.Recall?
+    @State private var inspecting = false
 
     var body: some View {
         Group {
@@ -29,11 +30,23 @@ struct RecallPanel: View {
                                 .foregroundStyle(Comic.red)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .padding(.top, 4)
+                            WhyButton { inspecting = true }
                         }
                     }
                 }
             }
         }
         .task { recall = try? await AssistantService.recall() }
+        .sheet(isPresented: $inspecting) {
+            if let recall {
+                MemoryInspector(
+                    title: "Why I suggested this for today.",
+                    records: recall.logs.map { "Logged \(recall.day ?? ""): \($0.title)" },
+                    memories: recall.memoriesUsed
+                ) {
+                    self.recall = try? await AssistantService.recall()   // watch the suggestion update
+                }
+            }
+        }
     }
 }

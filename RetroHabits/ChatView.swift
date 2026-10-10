@@ -7,6 +7,7 @@ struct ChatView: View {
     @State private var draft = ""
     @State private var isSending = false
     @State private var error: String?
+    @State private var inspecting: AssistantService.Turn?
     @FocusState private var inputFocused: Bool
 
     var body: some View {
@@ -27,6 +28,9 @@ struct ChatView: View {
 
                         ForEach(turns) { turn in
                             bubble(turn)
+                            if turn.role == .assistant, !turn.memories.isEmpty {
+                                WhyButton { inspecting = turn }
+                            }
                         }
 
                         if isSending {
@@ -52,6 +56,9 @@ struct ChatView: View {
             }
 
             inputBar
+        }
+        .sheet(item: $inspecting) { turn in
+            MemoryInspector(title: "What I drew on for that answer.", memories: turn.memories)
         }
     }
 
@@ -110,8 +117,8 @@ struct ChatView: View {
         isSending = true
         defer { isSending = false }
         do {
-            let reply = try await AssistantService.chat(message, history: history)
-            turns.append(.init(role: .assistant, text: reply))
+            let (reply, memories) = try await AssistantService.chat(message, history: history)
+            turns.append(.init(role: .assistant, text: reply, memories: memories))
         } catch {
             self.error = "Couldn't reach the assistant server. Is it running?"
         }

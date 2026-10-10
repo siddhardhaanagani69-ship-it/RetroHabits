@@ -11,6 +11,7 @@ struct AddHabitView: View {
     @State private var weekdays: Set<Int> = [1, 2, 3, 4, 5, 6, 7]
     @State private var reminderOn: Bool = false
     @State private var reminderTime: Date = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: Date()) ?? Date()
+    @State private var duration: Int = 60
 
     private let icons = ["⭐️", "📚", "💪", "🏃", "💧", "🧘", "💻", "🎸", "🛏", "🍎", "✏️", "🧹"]
     private let dayLetters = ["S", "M", "T", "W", "T", "F", "S"]
@@ -120,9 +121,15 @@ struct AddHabitView: View {
                                     .datePickerStyle(.wheel)
                                     .labelsHidden()
                                     .frame(maxWidth: .infinity)
-                                Text("You'll get a notification on each scheduled day.")
+                                Stepper(value: $duration, in: 15...240, step: 15) {
+                                    Text("TAKES ABOUT \(duration) MIN")
+                                        .font(.bangers(16))
+                                        .foregroundStyle(Comic.ink)
+                                }
+                                Text("You'll get a notification on each scheduled day. This time is also the habit's planned slot — Ripple Mode checks it for conflicts.")
                                     .font(.comicLight(12))
                                     .foregroundStyle(Comic.ink.opacity(0.6))
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                     }
@@ -157,6 +164,7 @@ struct AddHabitView: View {
         name = habit.name
         icon = habit.icon
         weekdays = habit.scheduledWeekdays
+        duration = habit.duration
         if let hour = habit.reminderHour, let minute = habit.reminderMinute {
             reminderOn = true
             reminderTime = Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date()) ?? Date()
@@ -168,6 +176,7 @@ struct AddHabitView: View {
         saved.name = name.trimmingCharacters(in: .whitespaces)
         saved.icon = icon
         saved.scheduledWeekdays = weekdays
+        saved.durationMinutes = duration
         if reminderOn {
             let components = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
             saved.reminderHour = components.hour
