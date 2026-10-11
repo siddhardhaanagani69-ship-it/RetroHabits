@@ -423,7 +423,7 @@ struct LearnFilterSheet: View {
                         Toggle(isOn: $store.showSavedOnly) {
                             Text("Saved only")
                                 .font(.heading(18))
-                                .foregroundStyle(Palette.blue)
+                                .foregroundStyle(Palette.accent)
                         }
                         .tint(Palette.red)
                     }

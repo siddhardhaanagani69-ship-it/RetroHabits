@@ -28,7 +28,7 @@ struct AddHabitView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Name")
                                 .font(.heading(18))
-                                .foregroundStyle(Palette.blue)
+                                .foregroundStyle(Palette.accent)
                             TextField("e.g. Read 20 minutes", text: $name)
                                 .font(.bodyMedium(16))
                                 .foregroundStyle(Palette.ink)
@@ -42,7 +42,7 @@ struct AddHabitView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Icon")
                                 .font(.heading(18))
-                                .foregroundStyle(Palette.blue)
+                                .foregroundStyle(Palette.accent)
                             LazyVGrid(
                                 columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 6),
                                 spacing: 8
@@ -60,7 +60,7 @@ struct AddHabitView: View {
                                             )
                                             .overlay(
                                                 RoundedRectangle(cornerRadius: 6)
-                                                    .stroke(icon == candidate ? Palette.blue : Palette.hairline, lineWidth: icon == candidate ? 2 : 1)
+                                                    .stroke(icon == candidate ? Palette.accent : Palette.hairline, lineWidth: icon == candidate ? 2 : 1)
                                             )
                                     }
                                     .buttonStyle(.plain)
@@ -73,7 +73,7 @@ struct AddHabitView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Repeat on")
                                 .font(.heading(18))
-                                .foregroundStyle(Palette.blue)
+                                .foregroundStyle(Palette.accent)
                             HStack(spacing: 6) {
                                 ForEach(1...7, id: \.self) { day in
                                     let isOn = weekdays.contains(day)
@@ -108,7 +108,7 @@ struct AddHabitView: View {
                             Toggle(isOn: $reminderOn.animation()) {
                                 Text("Reminder")
                                     .font(.heading(18))
-                                    .foregroundStyle(Palette.blue)
+                                    .foregroundStyle(Palette.accent)
                             }
                             .tint(Palette.red)
                             if reminderOn {

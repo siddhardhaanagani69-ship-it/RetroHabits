@@ -101,7 +101,7 @@ struct RippleView: View {
                 connector(1)
                 node(1) {
                     nodeCard {
-                        Text("No conflicts").font(.heading(18)).foregroundStyle(Palette.blue)
+                        Text("No conflicts").font(.heading(18)).foregroundStyle(Palette.accent)
                         Text(r.change.kind == "cancel"
                              ? "That frees up time — nothing else needs to move."
                              : "Nothing in your calendar or planned habits overlaps.")
@@ -122,7 +122,7 @@ struct RippleView: View {
     private func changeNode(_ r: AssistantService.RippleResult) -> some View {
         nodeCard(fill: r.hypothetical && !applied ? Palette.panel : Palette.yellow) {
             HStack {
-                tag(r.hypothetical ? "What if" : "You said", r.hypothetical ? Palette.orange : Palette.blue)
+                tag(r.hypothetical ? "What if" : "You said", r.hypothetical ? Palette.orange : Palette.accent)
                 if !applied { tag("Hypothetical", Palette.ink.opacity(0.55)) } else { tag("Applied", Palette.red) }
             }
             Text(changeHeadline(r.change)).font(.heading(20)).foregroundStyle(Palette.ink)
@@ -153,7 +153,7 @@ struct RippleView: View {
     private func conflictNode(_ c: AssistantService.RippleResult.Conflict) -> some View {
         nodeCard {
             HStack {
-                tag(c.kind == "plan" ? "Your plan" : "Calendar", c.kind == "plan" ? Palette.red : Palette.blue)
+                tag(c.kind == "plan" ? "Your plan" : "Calendar", c.kind == "plan" ? Palette.red : Palette.accent)
                 tag("Overlaps", Palette.ink.opacity(0.7))
             }
             Text(c.title).font(.heading(18)).foregroundStyle(Palette.ink)
@@ -185,7 +185,7 @@ struct RippleView: View {
     private func planNode(_ r: AssistantService.RippleResult) -> some View {
         let moves = r.conflicts.compactMap { c in choice[c.id].map { (c, $0) } }
         let fixed = r.conflicts.filter { !$0.movable }
-        return nodeCard(fill: applied ? Palette.blue : Palette.yellow) {
+        return nodeCard(fill: applied ? Palette.accent : Palette.yellow) {
             Text(applied ? "Plan updated" : "Revised plan").font(.heading(20)).foregroundStyle(Palette.red)
             if moves.isEmpty {
                 Text("No planned sessions move.").font(.bodyMedium(13)).foregroundStyle(Palette.ink)
@@ -215,7 +215,7 @@ struct RippleView: View {
                     Label("Add \(r.change.title) to Calendar", systemImage: "calendar.badge.plus")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(FilledButtonStyle(fill: Palette.blue, textColor: .white))
+                .buttonStyle(FilledButtonStyle(fill: Palette.accent, textColor: .white))
             }
         }
     }

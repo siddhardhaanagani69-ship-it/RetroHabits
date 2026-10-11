@@ -27,7 +27,7 @@ struct MemoryInspector: View {
                     if !records.isEmpty {
                         Card {
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Records it used").font(.heading(16)).foregroundStyle(Palette.blue)
+                                Text("Records it used").font(.heading(16)).foregroundStyle(Palette.accent)
                                 ForEach(records, id: \.self) { Text("• \($0)").font(.bodyMedium(13)).foregroundStyle(Palette.ink) }
                             }
                         }

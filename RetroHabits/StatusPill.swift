@@ -10,7 +10,7 @@ struct StatusPill: View {
             case .good: Palette.green
             case .warn: Palette.orange
             case .bad: Palette.red
-            case .neutral: Palette.blue
+            case .neutral: Palette.accent
             }
         }
     }

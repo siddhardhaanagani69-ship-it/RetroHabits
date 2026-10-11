@@ -47,10 +47,10 @@ struct Timeline: View {
                 .background(Circle().fill(Palette.green.opacity(0.15)))
                 .overlay(Circle().strokeBorder(Palette.green.opacity(0.4), lineWidth: 1))
         case .next:
-            Circle().fill(Palette.blue).frame(width: 12, height: 12)
+            Circle().fill(Palette.accent).frame(width: 12, height: 12)
                 .frame(width: 40, height: 40)
-                .background(Circle().fill(Palette.blue.opacity(0.18)))
-                .overlay(Circle().strokeBorder(Palette.blue, lineWidth: 1.5))
+                .background(Circle().fill(Palette.accent.opacity(0.18)))
+                .overlay(Circle().strokeBorder(Palette.accent, lineWidth: 1.5))
         case .later:
             Image(systemName: "clock")
                 .font(.footnote)

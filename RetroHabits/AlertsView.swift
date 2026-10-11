@@ -45,7 +45,7 @@ struct AlertsSection: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("All quiet")
                             .font(.heading(24))
-                            .foregroundStyle(Palette.blue)
+                            .foregroundStyle(Palette.accent)
                         Text("No alerts queued. Connect a source in Setup, then refresh — deadlines and events get their own alerts automatically.")
                             .font(.bodyMedium(14))
                             .foregroundStyle(Palette.ink)
@@ -135,7 +135,7 @@ struct AlertsSection: View {
     private func color(for kind: ScheduledAlert.Kind) -> Color {
         switch kind {
         case .deadline: return Palette.red
-        case .event: return Palette.blue
+        case .event: return Palette.accent
         case .briefing: return Palette.orange
         case .watch: return Palette.ink.opacity(0.75)
         }

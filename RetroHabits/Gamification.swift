@@ -10,7 +10,7 @@ struct HeroRank: Identifiable, Equatable {
 
     static let all: [HeroRank] = [
         HeroRank(title: "Rookie",    threshold: 0,     color: Palette.ink.opacity(0.6)),
-        HeroRank(title: "Sidekick",  threshold: 250,   color: Palette.blue),
+        HeroRank(title: "Sidekick",  threshold: 250,   color: Palette.accent),
         HeroRank(title: "Vigilante", threshold: 750,   color: Palette.orange),
         HeroRank(title: "Hero",      threshold: 1_500, color: Palette.red),
         HeroRank(title: "Avenger",   threshold: 3_000, color: Color(red: 0.55, green: 0.2, blue: 0.75)),
@@ -45,7 +45,7 @@ struct Achievement: Identifiable {
             title: "Origin Story",
             detail: "Create your first habit",
             symbol: "sparkles",
-            color: Palette.blue,
+            color: Palette.accent,
             isUnlocked: { !$0.isEmpty }
         ),
         Achievement(
@@ -96,7 +96,7 @@ struct Achievement: Identifiable {
             title: "Assemble",
             detail: "Track 5 habits at once",
             symbol: "person.3.fill",
-            color: Palette.blue,
+            color: Palette.accent,
             isUnlocked: { $0.count >= 5 }
         ),
         Achievement(

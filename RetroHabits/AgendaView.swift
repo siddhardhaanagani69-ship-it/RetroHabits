@@ -74,7 +74,6 @@ struct AgendaView: View {
             .padding(.horizontal, 16)
             .padding(.top, 12)
             .padding(.bottom, 24)
-            .background(alignment: .top) { GlowBackground().ignoresSafeArea(edges: .top) }
         }
         .refreshable { await agenda.refresh() }
         .task {
@@ -109,7 +108,7 @@ struct AgendaView: View {
                 HStack(spacing: 14) {
                     statBlock("\(agenda.items.count)", "TOTAL", Palette.ink)
                     Divider().frame(height: 34)
-                    statBlock("\(agenda.submittedCount)", "TURNED IN", Palette.blue)
+                    statBlock("\(agenda.submittedCount)", "TURNED IN", Palette.accent)
                     Divider().frame(height: 34)
                     statBlock("\(agenda.missingCount)", "MISSING", Palette.red)
                 }
@@ -193,7 +192,7 @@ struct AgendaView: View {
                             Spacer()
                             Text(done ? "Done" : plannedTime(habit, on: selectedDay))
                                 .font(.subheadline)
-                                .foregroundStyle(done ? Palette.blue : .secondary)
+                                .foregroundStyle(done ? Palette.accent : .secondary)
                         }
                     }
                 }
@@ -236,7 +235,7 @@ struct AgendaView: View {
                 VStack(spacing: 3) {
                     Text(item.isAllDay ? "ALL\nDAY" : Self.timeFormatter.string(from: item.start))
                         .font(.heading(16))
-                        .foregroundStyle(item.isMissing ? Palette.red : Palette.blue)
+                        .foregroundStyle(item.isMissing ? Palette.red : Palette.accent)
                         .multilineTextAlignment(.center)
                     Image(systemName: item.kind.symbol)
                         .font(.system(size: 11, weight: .black))
@@ -254,7 +253,7 @@ struct AgendaView: View {
                     Text(item.summary ?? item.title)
                         .font(.bodyMedium(15))
                         .foregroundStyle(item.isSubmitted ? Palette.ink.opacity(0.55) : Palette.ink)
-                        .strikethrough(item.isSubmitted, color: Palette.blue)
+                        .strikethrough(item.isSubmitted, color: Palette.accent)
                         .multilineTextAlignment(.leading)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -271,7 +270,7 @@ struct AgendaView: View {
                             statusTag("Urgent", Palette.red)
                         }
                         if item.isSubmitted {
-                            statusTag("Turned in", Palette.blue)
+                            statusTag("Turned in", Palette.accent)
                         } else if item.isMissing {
                             statusTag("Missing", Palette.red)
                         }
@@ -381,7 +380,7 @@ struct EventDetailView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Details")
                                     .font(.heading(18))
-                                    .foregroundStyle(Palette.blue)
+                                    .foregroundStyle(Palette.accent)
                                 Text(notes)
                                     .font(.bodyRegular(14))
                                     .foregroundStyle(Palette.ink)
@@ -409,7 +408,7 @@ struct EventDetailView: View {
                                 Label("Open in Calendar", systemImage: "calendar")
                                     .frame(maxWidth: .infinity)
                             }
-                            .buttonStyle(FilledButtonStyle(fill: Palette.blue, textColor: .white))
+                            .buttonStyle(FilledButtonStyle(fill: Palette.accent, textColor: .white))
                         }
                         Button {
                             dismiss()
@@ -494,10 +493,10 @@ struct DayStrip: View {
                                 .foregroundStyle(.secondary)
                             Text("\(Calendar.current.component(.day, from: day))")
                                 .font(.system(size: 17, weight: .semibold))
-                                .foregroundStyle(isSelected ? .white : (isToday ? Palette.blue : Palette.ink))
+                                .foregroundStyle(isSelected ? .white : (isToday ? Palette.accent : Palette.ink))
                                 .frame(width: 42, height: 42)
-                                .background(Circle().fill(isSelected ? Palette.blue : Palette.panel))
-                                .overlay(Circle().stroke(isToday && !isSelected ? Palette.blue : .clear, lineWidth: 1.5))
+                                .background(Circle().fill(isSelected ? Palette.accent : Palette.panel))
+                                .overlay(Circle().stroke(isToday && !isSelected ? Palette.accent : .clear, lineWidth: 1.5))
                             Circle()
                                 .fill(busyDays.contains(day) ? Palette.orange : .clear)
                                 .frame(width: 5, height: 5)

@@ -28,7 +28,7 @@ struct AddSpendingCard: View {
                         Image(systemName: dictation.isListening ? "stop.fill" : "mic.fill")
                     }
                     .buttonStyle(FilledButtonStyle(fill: dictation.isListening ? Palette.red : Palette.fill,
-                                                   textColor: dictation.isListening ? .white : Palette.blue))
+                                                   textColor: dictation.isListening ? .white : Palette.accent))
                     .accessibilityLabel(dictation.isListening ? "Stop and add" : "Say what you spent")
 
                     if UIImagePickerController.isSourceTypeAvailable(.camera) {
@@ -44,7 +44,7 @@ struct AddSpendingCard: View {
                         Group { if isSaving { ProgressView().tint(.white) } else { Text("Add") } }
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(FilledButtonStyle(fill: Palette.blue, textColor: .white))
+                    .buttonStyle(FilledButtonStyle(fill: Palette.accent, textColor: .white))
                     .disabled(isSaving || draft.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 .disabled(isSaving)

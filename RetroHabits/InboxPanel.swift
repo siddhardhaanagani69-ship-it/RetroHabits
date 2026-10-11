@@ -32,7 +32,7 @@ struct InboxPanel: View {
                             } label: {
                                 Text(showAll ? "Show less" : "Show \(mails.count - collapsedCount) more")
                                     .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Palette.blue)
+                                    .foregroundStyle(Palette.accent)
                                     .padding(.top, 4)
                             }
                             .buttonStyle(.plain)

@@ -71,7 +71,7 @@ struct SectionHeader: View {
 /// with white text for the primary action.
 struct FilledButtonStyle: ButtonStyle {
     var fill: Color = Palette.fill
-    var textColor: Color = Palette.blue
+    var textColor: Color = Palette.accent
 
     func makeBody(configuration: Configuration) -> some View {
         StyledLabel(configuration: configuration, fill: fill, textColor: textColor)

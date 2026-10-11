@@ -60,7 +60,7 @@ struct CaptureView: View {
     private var pickerPanel: some View {
         Card {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Campus Capture").font(.heading(22)).foregroundStyle(Palette.blue)
+                Text("Campus Capture").font(.heading(22)).foregroundStyle(Palette.accent)
                 Text("Snap an event flyer. I'll check it against your calendar and what you've told me you're into.")
                     .font(.bodyRegular(12)).foregroundStyle(Palette.ink.opacity(0.65))
                     .fixedSize(horizontal: false, vertical: true)
@@ -120,7 +120,7 @@ struct CaptureView: View {
                             Button { saving = true } label: {
                                 Label("Save to Calendar", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity)
                             }
-                            .buttonStyle(FilledButtonStyle(fill: Palette.blue, textColor: .white))
+                            .buttonStyle(FilledButtonStyle(fill: Palette.accent, textColor: .white))
                             Button { onPlanAround(planSentence(r.event)) } label: {
                                 Label("Plan Around It", systemImage: "dot.radiowaves.right").frame(maxWidth: .infinity)
                             }

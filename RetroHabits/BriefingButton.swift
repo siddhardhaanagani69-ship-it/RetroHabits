@@ -64,7 +64,7 @@ struct BriefingButton: View {
             }
         }
         .buttonStyle(FilledButtonStyle(fill: player.state == .playing ? Palette.red : Palette.fill,
-                                      textColor: player.state == .playing ? .white : Palette.blue))
+                                      textColor: player.state == .playing ? .white : Palette.accent))
         .accessibilityLabel(player.state == .playing ? "Stop briefing" : "Play today's briefing")
         .alert("Couldn't play the briefing", isPresented: $showingError) {
         } message: {

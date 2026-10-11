@@ -30,7 +30,7 @@ struct SpendingList: View {
     private func row(_ entry: AssistantService.Spend) -> some View {
         HStack(spacing: 12) {
             Image(systemName: Self.symbol(entry.category))
-                .foregroundStyle(Palette.blue)
+                .foregroundStyle(Palette.accent)
                 .frame(width: 28)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {

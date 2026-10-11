@@ -79,7 +79,7 @@ struct VoiceLogPanel: View {
                     Label(buttonTitle, systemImage: buttonIcon)
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(FilledButtonStyle(fill: isRecording ? Palette.red : Palette.blue, textColor: .white))
+                .buttonStyle(FilledButtonStyle(fill: isRecording ? Palette.red : Palette.accent, textColor: .white))
                 .disabled(isSending)
 
                 result

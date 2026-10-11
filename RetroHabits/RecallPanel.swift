@@ -14,7 +14,7 @@ struct RecallPanel: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Last time · \(day)")
                             .font(.heading(18))
-                            .foregroundStyle(Palette.blue)
+                            .foregroundStyle(Palette.accent)
                         ForEach(Array(recall.logs.enumerated()), id: \.offset) { _, session in
                             Text(session.title)
                                 .font(.heading(20))

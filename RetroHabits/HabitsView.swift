@@ -90,7 +90,6 @@ struct HabitsView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
                 .padding(.bottom, 24)
-                .background(alignment: .top) { GlowBackground().ignoresSafeArea(edges: .top) }
             }
 
             if let milestoneBanner {
@@ -141,7 +140,7 @@ struct HabitsView: View {
         let isDone = habit.isCompleted(on: Date())
         let streak = habit.streak
 
-        return Card(fill: isDone ? Palette.blue : Palette.panel) {
+        return Card(fill: isDone ? Palette.accent : Palette.panel) {
             HStack(spacing: 8) {
                 Button { complete(habit, wasDone: isDone) } label: {
                     CheckCircle(checked: isDone)
@@ -226,9 +225,9 @@ struct CheckCircle: View {
     var body: some View {
         ZStack {
             Circle()
-                .strokeBorder(checked ? Palette.blue : Color(.tertiaryLabel), lineWidth: 2)
+                .strokeBorder(checked ? Palette.accent : Color(.tertiaryLabel), lineWidth: 2)
             if checked {
-                Circle().fill(Palette.blue).padding(4)
+                Circle().fill(Palette.accent).padding(4)
                 Image(systemName: "checkmark")
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white)

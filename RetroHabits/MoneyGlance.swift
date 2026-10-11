@@ -10,7 +10,7 @@ struct MoneyGlance: View {
                 HStack(spacing: 12) {
                     Image(systemName: "dollarsign.circle.fill")
                         .font(.title2)
-                        .foregroundStyle(Palette.blue)
+                        .foregroundStyle(Palette.accent)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         if let remaining = s.remaining {

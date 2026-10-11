@@ -25,8 +25,8 @@ struct ChatView: View {
                                 Image(systemName: speakReplies ? "speaker.wave.2.fill" : "speaker.slash")
                                     .font(.system(size: 16, weight: .semibold))
                             }
-                            .buttonStyle(FilledButtonStyle(fill: speakReplies ? Palette.blue : Palette.fill,
-                                                           textColor: speakReplies ? .white : Palette.blue))
+                            .buttonStyle(FilledButtonStyle(fill: speakReplies ? Palette.accent : Palette.fill,
+                                                           textColor: speakReplies ? .white : Palette.accent))
                             .accessibilityLabel(speakReplies ? "Stop reading replies aloud" : "Read replies aloud")
                         }
 
@@ -49,7 +49,7 @@ struct ChatView: View {
                                     } label: {
                                         Label("Listen", systemImage: "play.fill")
                                             .font(.caption.weight(.semibold))
-                                            .foregroundStyle(Palette.blue)
+                                            .foregroundStyle(Palette.accent)
                                             .frame(minHeight: 44)
                                             .contentShape(.rect)
                                     }
@@ -99,7 +99,7 @@ struct ChatView: View {
                 .padding(12)
                 .background(
                     ZStack {
-                        RoundedRectangle(cornerRadius: 12).fill(mine ? Palette.blue : Palette.panel)
+                        RoundedRectangle(cornerRadius: 12).fill(mine ? Palette.accent : Palette.panel)
                         RoundedRectangle(cornerRadius: 12).stroke(Palette.hairline, lineWidth: 1)
                     }
                 )
@@ -116,7 +116,7 @@ struct ChatView: View {
                     .font(.system(size: 16, weight: .semibold))
             }
             .buttonStyle(FilledButtonStyle(fill: dictation.isListening ? Palette.red : Palette.fill,
-                                           textColor: dictation.isListening ? .white : Palette.blue))
+                                           textColor: dictation.isListening ? .white : Palette.accent))
             .disabled(isSending)
             .accessibilityLabel(dictation.isListening ? "Stop and send" : "Speak your question")
 

@@ -23,7 +23,6 @@ struct MoneyView: View {
             .padding(.horizontal, 16)
             .padding(.top, 12)
             .padding(.bottom, 24)
-            .background(alignment: .top) { GlowBackground().ignoresSafeArea(edges: .top) }
         }
         .refreshable { await money.refresh() }
         .task { await money.refresh() }

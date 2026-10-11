@@ -10,13 +10,14 @@ enum Palette {
     static let fill     = Color(.tertiarySystemFill)
     static let red      = Color(.systemRed)
     static let yellow   = Color(.systemYellow)
-    static let blue     = Color(.systemBlue)
+    /// The app's accent: crimson (AccentColor in the asset catalog).
+    static let accent   = Color.accentColor
     static let orange   = Color(.systemOrange)
     static let purple   = Color(.systemPurple)
     static let green    = Color(.systemGreen)
-    static let cyan     = Color(.systemCyan)
-    /// The blue-to-cyan used for progress and range bars.
-    static let accentGradient = LinearGradient(colors: [blue, cyan], startPoint: .leading, endPoint: .trailing)
+    static let rose     = Color(red: 1.0, green: 0.42, blue: 0.48)
+    /// The crimson-to-rose used for progress and range bars.
+    static let accentGradient = LinearGradient(colors: [accent, rose], startPoint: .leading, endPoint: .trailing)
 }
 
 extension Font {
@@ -58,7 +59,7 @@ extension AgendaSource {
     var tint: Color {
         switch self {
         case .canvas: return Palette.red
-        case .apple: return Palette.blue
+        case .apple: return Palette.accent
         case .email: return Palette.orange
         case .routine: return Palette.purple
         }

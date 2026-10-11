@@ -99,7 +99,7 @@ struct SettingsView: View {
                             .foregroundStyle(.white)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 3)
-                            .background(Capsule().fill(Palette.blue))
+                            .background(Capsule().fill(Palette.accent))
                     }
                 }
 
@@ -185,7 +185,7 @@ struct SettingsView: View {
                 Toggle(isOn: appleCalendarBinding) {
                     Text("iPhone Calendar")
                         .font(.heading(20))
-                        .foregroundStyle(Palette.blue)
+                        .foregroundStyle(Palette.accent)
                 }
                 .tint(Palette.red)
                 Text("Pulls in every account synced to your iPhone calendar. Tip: add your school email under Settings → Apps → Calendar → Calendar Accounts and your Outlook events and Teams meetings appear here too.")
@@ -245,7 +245,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Daily Digests")
                     .font(.heading(20))
-                    .foregroundStyle(Palette.blue)
+                    .foregroundStyle(Palette.accent)
 
                 Toggle(isOn: $prefs.dailyBriefingEnabled) {
                     Text("Morning briefing")

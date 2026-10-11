@@ -15,7 +15,7 @@ struct WeekdayPicker: View {
                         .font(.subheadline.bold())
                         .foregroundStyle(isOn ? .white : Palette.ink)
                         .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(Circle().fill(isOn ? Palette.blue : Palette.fill))
+                        .background(Circle().fill(isOn ? Palette.accent : Palette.fill))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Calendar.current.weekdaySymbols[day - 1])
