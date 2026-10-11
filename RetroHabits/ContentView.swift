@@ -30,8 +30,8 @@ struct ContentView: View {
     @State private var tab: AppTab
     /// Stats or Setup, shown as a sheet from the + button.
     @State private var sheet: AppTab?
-    /// The tab before this one, so the glow can glide over from its spot.
-    @State private var previousTab: AppTab = .agenda
+    /// Hides the dock while typing, so the keyboard isn't stacked on top of it.
+    @State private var keyboardShown = false
     /// Lives here so switching tabs doesn't wipe the conversation.
     @State private var chatTurns: [AssistantService.Turn] = []
 
@@ -42,24 +42,35 @@ struct ContentView: View {
     }
 
     var body: some View {
+        // Paged, so a left or right swipe moves to the next feature. Horizontal
+        // scrollers inside a page (the date strip, category cards) still scroll first.
         TabView(selection: $tab) {
             ForEach(AppTab.dock, id: \.self) { tab in
                 screen(for: tab)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background {
-                        ZStack(alignment: .top) {
-                            Palette.paper
-                            GlowBackground(x: Self.glowX(tab), from: Self.glowX(previousTab))
-                        }
-                        .ignoresSafeArea()
-                    }
-                    .tabItem { Label(tab.rawValue, systemImage: tab.icon) }
                     .tag(tab)
             }
         }
-        .onChange(of: tab) { old, _ in previousTab = old }
-        // Not on Ask, where it would sit on top of the message field.
-        .overlay(alignment: .bottomTrailing) { if tab != .ask { plusButton } }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .background {
+            ZStack(alignment: .top) {
+                Palette.paper
+                GlowBackground(x: glowX)
+            }
+            .ignoresSafeArea()
+        }
+        .safeAreaInset(edge: .bottom) {
+            if !keyboardShown {
+                HStack(spacing: 10) {
+                    Dock(selection: $tab)
+                    plusButton
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 4)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in keyboardShown = true }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardShown = false }
         .sheet(item: $sheet) { page in
             NavigationStack {
                 screen(for: page)
@@ -73,7 +84,7 @@ struct ContentView: View {
         }
     }
 
-    /// Floating above the dock: Stats and Setup.
+    /// Beside the dock: Stats and Setup.
     private var plusButton: some View {
         Menu {
             Button("Stats", systemImage: AppTab.stats.icon) { sheet = .stats }
@@ -86,12 +97,10 @@ struct ContentView: View {
                 .background(Circle().fill(Palette.accent))
         }
         .accessibilityLabel("More: Stats, Setup")
-        .padding(.trailing, 20)
-        .padding(.bottom, 72)   // sits just above the dock
     }
 
-    /// Each tab's glow sits above its place in the dock, kept a little in from the edges.
-    private static func glowX(_ tab: AppTab) -> CGFloat {
+    /// The glow sits above the selected tab's place in the dock, a little in from the edges.
+    private var glowX: CGFloat {
         let index = AppTab.dock.firstIndex(of: tab) ?? 0
         return 0.2 + 0.6 * CGFloat(index) / CGFloat(AppTab.dock.count - 1)
     }
