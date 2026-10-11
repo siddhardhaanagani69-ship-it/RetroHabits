@@ -337,7 +337,7 @@ struct EventDetailView: View {
                             Button {
                                 openURL(url)
                             } label: {
-                                Label(item.source == .canvas ? "Open in Canvas" : "Open Link",
+                                Label(item.source == .canvas ? "Open in Canvas" : item.source == .email ? "Open in Gmail" : "Open Link",
                                       systemImage: "arrow.up.right.square.fill")
                                     .frame(maxWidth: .infinity)
                             }

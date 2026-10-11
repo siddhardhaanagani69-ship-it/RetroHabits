@@ -100,6 +100,7 @@ struct Habit: Identifiable, Codable, Equatable {
 enum AgendaSource: String, Codable, CaseIterable {
     case canvas = "CANVAS"
     case apple = "IPHONE"
+    case email = "EMAIL"
 }
 
 /// What kind of thing an agenda item is — drives the icon and wording.

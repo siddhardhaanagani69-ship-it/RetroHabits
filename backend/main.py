@@ -136,6 +136,8 @@ class Summary(BaseModel):
     action: str         # the concrete thing to do ("" if nothing)
     urgency: int        # 1 low .. 3 high
     course: str | None  # e.g. "CHEM 1331"
+    due: datetime | None = None      # emails only: a deadline or event time the email states
+    due_end: datetime | None = None  # emails only: when that event ends, if stated
 
 
 PROMPT = """You turn noisy calendar, Canvas and Teams items into glanceable cards for a busy student.
@@ -145,6 +147,10 @@ For every item return, keeping its exact id:
 - urgency: 3 if something must be done or attended within 24 hours, 2 within 3 days, else 1.
   Pure FYI with nothing to do is always 1.
 - course: short course name like "CHEM 1331" if you can tell, else null.
+- due / due_end: ONLY for items with source "gmail". If the email states a deadline or a scheduled
+  time ("due Monday 11:59 PM", "meeting Tuesday 2-3pm"), give it as ISO 8601 with UTC offset, reading
+  relative days from the email's own date ("start"). due_end only for an event with an end time.
+  Null when no date is stated, and always null for non-email items. Never guess a date.
 
 Current time: {now}
 
@@ -153,55 +159,62 @@ Items (JSON):
 
 
 @app.post("/summarize")
-def summarize(items: list[Item]) -> list[Summary]:
+def summarize(items: list[Item], tz: str = "UTC") -> list[Summary]:
     """Summaries for the given items. Anything already summarized with the same
     title comes from Tiger; only new or renamed items go to Gemini."""
     if not items:
         return []
     with psycopg.connect(DB) as conn:
         rows = conn.execute(
-            "select id, title, summary, action, urgency, course from items where id = any(%s)",
+            "select id, title, summary, action, urgency, course, due, due_end from items where id = any(%s)",
             ([i.id for i in items],),
         ).fetchall()
         titles = {i.id: i.title for i in items}
         cached = {
-            r[0]: Summary(id=r[0], summary=r[2], action=r[3], urgency=r[4], course=r[5])
+            r[0]: Summary(id=r[0], summary=r[2], action=r[3], urgency=r[4], course=r[5], due=r[6], due_end=r[7])
             for r in rows
             if r[1] == titles[r[0]] and r[2] is not None
         }
         todo = [i for i in items if i.id not in cached]
         if todo:
-            for s in _ask_gemini(todo):
+            for s in _ask_gemini(todo, _zone(tz)):
                 cached[s.id] = s
             by_id = {i.id: i for i in todo}
             conn.cursor().executemany(
-                """insert into items (id, source, title, start_at, summary, action, urgency, course)
-                   values (%s, %s, %s, %s, %s, %s, %s, %s)
+                """insert into items (id, source, title, start_at, summary, action, urgency, course, due, due_end, detail)
+                   values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                    on conflict (id) do update set
                      title = excluded.title, start_at = excluded.start_at, summary = excluded.summary,
                      action = excluded.action, urgency = excluded.urgency, course = excluded.course,
+                     due = excluded.due, due_end = excluded.due_end, detail = excluded.detail,
                      updated_at = now()""",
                 [
                     (s.id, by_id[s.id].source, by_id[s.id].title, by_id[s.id].start,
-                     s.summary, s.action, s.urgency, s.course)
+                     s.summary, s.action, s.urgency, s.course, s.due, s.due_end,
+                     # email body kept so the chat can answer questions about it
+                     (by_id[s.id].notes or "")[:1500] if by_id[s.id].source == "gmail" else None)
                     for s in cached.values() if s.id in by_id
                 ],
             )
     return [cached[i.id] for i in items if i.id in cached]
 
 
-def _ask_gemini(items: list[Item]) -> list[Summary]:
+def _ask_gemini(items: list[Item], zone: ZoneInfo) -> list[Summary]:
     # Notes can be long Canvas/Teams boilerplate; the first part carries the meaning.
     payload = [i.model_copy(update={"notes": (i.notes or "")[:600] or None}) for i in items]
     resp = generate_sync(
         contents=PROMPT.format(
-            now=datetime.now().astimezone().isoformat(timespec="minutes"),
+            now=datetime.now(zone).isoformat(timespec="minutes"),
             items="[" + ",".join(p.model_dump_json(exclude_none=True) for p in payload) + "]",
         ),
         config={"response_mime_type": "application/json", "response_schema": list[Summary]},
     )
-    wanted = {i.id for i in items}
-    return [s for s in (resp.parsed or []) if s.id in wanted]  # Gemini can drop or invent ids
+    wanted = {i.id: i for i in items}
+    out = [s for s in (resp.parsed or []) if s.id in wanted]  # Gemini can drop or invent ids
+    for s in out:
+        if wanted[s.id].source != "gmail":
+            s.due = s.due_end = None   # deadlines come from the calendar itself, not the model
+    return out
 
 
 # MARK: - Voice log
@@ -389,26 +402,43 @@ def _zone(tz: str) -> ZoneInfo:
 
 
 def _context(zone: ZoneInfo) -> str:
-    """What's coming up and what was logged lately, as plain text for the model."""
+    """What's coming up, what was logged lately and recent email, as plain text for the model."""
     now = datetime.now(zone)
+    window = (now - timedelta(hours=2), now + timedelta(days=4))
     with psycopg.connect(DB) as conn:
+        # Calendar/Canvas items by their time; emails only if they state a deadline in the window.
         items = conn.execute(
-            """select start_at, coalesce(summary, title), action from items
-               where start_at >= %s and start_at < %s and not done order by start_at limit 30""",
-            (now - timedelta(hours=2), now + timedelta(days=4)),
+            """select coalesce(due, start_at) as at, coalesce(summary, title), action, source from items
+               where not done and (
+                 (source <> 'gmail' and start_at >= %s and start_at < %s) or
+                 (source = 'gmail' and due >= %s and due < %s))
+               order by at limit 30""",
+            (*window, *window),
         ).fetchall()
         logs = conn.execute(
             "select ts, kind, data->>'title', raw_text from logs where ts >= %s order by ts",
             (now - timedelta(days=7),),
         ).fetchall()
+        mails = conn.execute(
+            """select start_at, title, summary, action, due, detail from items
+               where source = 'gmail' and start_at >= %s order by start_at desc limit 15""",
+            (now - timedelta(days=3),),
+        ).fetchall()
     agenda = "\n".join(
-        f"- {s.astimezone(zone):%a %b %d %H:%M}: {summary}" + (f" (to do: {action})" if action else "")
-        for s, summary, action in items) or "- nothing scheduled"
+        f"- {at.astimezone(zone):%a %b %d %H:%M}: {summary}" + (f" (to do: {action})" if action else "")
+        + (" [from email]" if source == "gmail" else "")
+        for at, summary, action, source in items) or "- nothing scheduled"
     recent = "\n".join(
         f"- {ts.astimezone(zone):%a %b %d}: {kind} '{title}': {text}" for ts, kind, title, text in logs
     ) or "- nothing logged"
+    inbox = "\n".join(
+        f"- {received.astimezone(zone):%a %b %d %H:%M} | {subject} | {summary}"
+        + (f" | to do: {action}" if action else "") + (f" | due {due.astimezone(zone):%a %b %d %H:%M}" if due else "")
+        + (f"\n  excerpt: {detail[:500]}" if detail else "")
+        for received, subject, summary, action, due, detail in mails) or "- no recent email"
     return (f"[Background from the app, not written by the user. Now: {now:%A %B %d %Y, %H:%M}]\n"
-            f"Upcoming:\n{agenda}\n\nLogged in the last 7 days:\n{recent}")
+            f"Upcoming:\n{agenda}\n\nLogged in the last 7 days:\n{recent}\n\n"
+            f"Recent email (last 3 days, newest first):\n{inbox}")
 
 
 _memory_thread: str | None = None
@@ -502,7 +532,7 @@ def _parse_mail(raw: bytes) -> tuple[Item, str]:
 
 
 @app.get("/mail")
-def mail() -> list[MailBrief]:
+def mail(tz: str = "UTC") -> list[MailBrief]:
     """Recent important email, summarized like agenda items (read-only Gmail API)."""
     session = _gmail_session()
     try:
@@ -522,7 +552,7 @@ def mail() -> list[MailBrief]:
     parsed = [(gid, *_parse_mail(raw)) for gid, raw in raws]
     by_id = {item.id: (gid, item, sender) for gid, item, sender in parsed}
     out = []
-    for s in summarize([item for _, item, _ in parsed]):
+    for s in summarize([item for _, item, _ in parsed], tz):
         gid, item, sender = by_id[s.id]
         out.append(MailBrief(
             **s.model_dump(), sender=sender, subject=item.title,

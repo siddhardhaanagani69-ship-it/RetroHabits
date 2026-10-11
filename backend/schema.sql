@@ -13,6 +13,10 @@ create table if not exists items (
 );
 
 alter table items add column if not exists course text;  -- for DBs created before the column existed
+-- Email deadlines and the body excerpt the chat answers from.
+alter table items add column if not exists due timestamptz;
+alter table items add column if not exists due_end timestamptz;
+alter table items add column if not exists detail text;
 
 -- Voice-note logs (workouts, study sessions, ...). Time-series, so a hypertable.
 create table if not exists logs (

@@ -10,6 +10,8 @@ final class AgendaStore: ObservableObject {
     static let shared = AgendaStore()
 
     @Published var items: [AgendaItem] = []
+    /// Recent important email for the Inbox panel (empty when Gmail isn't connected).
+    @Published var mails: [AssistantService.MailBrief] = []
     @Published var isLoading = false
     @Published var errors: [String] = []
     @Published var lastRefreshed: Date?
@@ -136,6 +138,22 @@ final class AgendaStore: ObservableObject {
             }
         }
 
+        // Email (incl. Teams notifications): the inbox, plus any deadline or meeting an email
+        // states, as agenda items — so they get alerts and Ripple sees them. Optional:
+        // skipped quietly when Gmail isn't connected.
+        if let mail = try? await AssistantService.mail() {
+            mails = mail
+            let today = Calendar.current.startOfDay(for: Date())
+            items += mail.compactMap { m -> AgendaItem? in
+                guard let due = m.due, due >= today else { return nil }
+                return AgendaItem(id: "mail-\(m.id)", title: m.subject, start: due, end: m.dueEnd,
+                                  notes: m.excerpt, url: m.link, source: .email,
+                                  kind: m.dueEnd == nil ? .assignment : .event,
+                                  summary: m.summary, action: m.action.isEmpty ? nil : m.action, urgency: m.urgency)
+            }
+            items.sort { $0.start < $1.start }
+        }
+
         lastRefreshed = Date()
         isLoading = false
 
@@ -152,6 +170,7 @@ final class AgendaStore: ObservableObject {
         switch source {
         case .canvas: return 0
         case .apple: return 1
+        case .email: return 2
         }
     }
 

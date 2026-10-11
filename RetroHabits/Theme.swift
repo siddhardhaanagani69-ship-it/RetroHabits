@@ -27,6 +27,7 @@ extension AgendaSource {
         switch self {
         case .canvas: return "Canvas"
         case .apple: return "Calendar"
+        case .email: return "Email"
         }
     }
 
@@ -34,6 +35,7 @@ extension AgendaSource {
         switch self {
         case .canvas: return Palette.red
         case .apple: return Palette.blue
+        case .email: return Palette.orange
         }
     }
 }

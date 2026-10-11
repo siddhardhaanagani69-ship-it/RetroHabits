@@ -101,7 +101,8 @@ final class NotificationScheduler: ObservableObject {
 
         // 1. Deadline alerts (Canvas assignments and other dated items).
         if preferences.deadlineAlertsEnabled {
-            for item in items where item.source == .canvas {
+            // Canvas work and deadlines stated in email (not meetings, which get start alerts).
+            for item in items where item.source == .canvas || (item.source == .email && item.kind.isSubmittable) {
                 for hours in preferences.profile.assignmentLeadHours {
                     guard let fire = Calendar.current.date(byAdding: .hour, value: -hours, to: item.start),
                           fire > now else { continue }
@@ -228,7 +229,8 @@ final class NotificationScheduler: ObservableObject {
                   let windowEnd = calendar.date(byAdding: .day, value: windowDays, to: fire) else { continue }
 
             let upcoming = items
-                .filter { $0.source == .canvas && $0.start > fire && $0.start <= windowEnd }
+                .filter { ($0.source == .canvas || ($0.source == .email && $0.kind.isSubmittable))
+                    && $0.start > fire && $0.start <= windowEnd }
                 .sorted { $0.start < $1.start }
             guard !upcoming.isEmpty else { continue }
 

@@ -5,11 +5,12 @@ import SwiftUI
 /// Gmail isn't set up on the server.
 struct InboxPanel: View {
     @EnvironmentObject var agenda: AgendaStore
-    @State private var mails: [AssistantService.MailBrief] = []
     @State private var showAll = false
     @State private var selected: AssistantService.MailBrief?
 
     private let collapsedCount = 6
+    /// Loaded with the agenda on every refresh.
+    private var mails: [AssistantService.MailBrief] { agenda.mails }
 
     var body: some View {
         // A VStack, not a Group: a Group with no content has no views to run .task on.
@@ -40,10 +41,6 @@ struct InboxPanel: View {
                 }
             }
         }
-        // Reload whenever the agenda refreshes (pull-to-refresh, app foregrounding).
-        .task(id: agenda.lastRefreshed) {
-            if let fresh = try? await AssistantService.mail() { mails = fresh }
-        }
         .sheet(item: $selected) { MailDetail(mail: $0) }
     }
 
@@ -64,6 +61,11 @@ struct InboxPanel: View {
                     Label(mail.action, systemImage: "arrow.right.circle.fill")
                         .font(.bodyMedium(12))
                         .foregroundStyle(Palette.red)
+                }
+                if let due = mail.due {
+                    Label(RippleView.range(due, mail.dueEnd), systemImage: "calendar.badge.clock")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Palette.orange)
                 }
                 Text(mail.senderName)
                     .font(.caption)
@@ -94,6 +96,10 @@ struct MailDetail: View {
                 }
                 Section("Summary") {
                     Text(mail.summary)
+                    if let due = mail.due {
+                        Label("\(RippleView.range(due, mail.dueEnd)) · added to your agenda", systemImage: "calendar.badge.clock")
+                            .foregroundStyle(Palette.orange)
+                    }
                     if !mail.action.isEmpty {
                         Label(mail.action, systemImage: "arrow.right.circle.fill").foregroundStyle(Palette.red)
                     }

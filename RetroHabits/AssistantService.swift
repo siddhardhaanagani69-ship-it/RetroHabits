@@ -72,9 +72,16 @@ enum AssistantService {
     }
 
     /// Glance summaries keyed by item id.
+    /// Adds the phone's time zone, so "due Monday 11:59 PM" means your Monday.
+    private static func inLocalTime(_ url: URL) -> URL {
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "tz", value: TimeZone.current.identifier)]
+        return components?.url ?? url
+    }
+
     static func summaries(for items: [AgendaItem]) async throws -> [String: Summary] {
         guard let base = baseURL else { throw URLError(.badURL) }
-        var request = URLRequest(url: base.appendingPathComponent("summarize"))
+        var request = URLRequest(url: inLocalTime(base.appendingPathComponent("summarize")))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         // First run summarizes everything in one Gemini call; later runs hit the cache.
@@ -350,6 +357,9 @@ enum AssistantService {
         let subject: String
         let excerpt: String
         let link: URL?
+        /// A deadline or meeting time the email states (nil if it doesn't).
+        let due: Date?
+        let dueEnd: Date?
 
         /// "Microsoft Teams <noreply@…>" → "Microsoft Teams"
         var senderName: String {
@@ -362,12 +372,12 @@ enum AssistantService {
     /// Recent important email (incl. Teams notifications), summarized. Most urgent first.
     static func mail() async throws -> [MailBrief] {
         guard let base = baseURL else { throw URLError(.badURL) }
-        var request = URLRequest(url: base.appendingPathComponent("mail"))
-        request.timeoutInterval = 60
+        var request = URLRequest(url: inLocalTime(base.appendingPathComponent("mail")))
+        request.timeoutInterval = 90
         authorize(&request)
         let (data, response) = try await URLSession.shared.data(for: request)
         try check(response)
-        return try JSONDecoder().decode([MailBrief].self, from: data)
+        return try decoder.decode([MailBrief].self, from: data)
             .sorted { $0.urgency > $1.urgency }
     }
 
