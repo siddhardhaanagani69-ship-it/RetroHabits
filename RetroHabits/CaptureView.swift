@@ -152,7 +152,7 @@ struct CaptureView: View {
             let r = try await AssistantService.capture(imageJPEG: jpeg, agenda: agenda.items, habits: habits.habits)
             withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) { result = r }
         } catch {
-            self.error = "Couldn't read that flyer. Is the server reachable?"
+            self.error = error.localizedDescription
         }
     }
 }

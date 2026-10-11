@@ -3,9 +3,32 @@ import Foundation
 /// Talks to the RetroHabits assistant backend (`backend/` in this repo).
 enum AssistantService {
 
-    /// The simulator reaches the Mac at localhost. A real phone needs the Mac's
-    /// address on the same Wi-Fi, e.g. http://Sids-MacBook.local:8000 — set it in SETUP.
-    static let defaultURL = "http://localhost:8000"
+    /// The deployed server. Override in SETUP to point at a local one
+    /// (e.g. http://localhost:8000 from the simulator).
+    static let defaultURL = "https://45-76-234-93.sslip.io"
+
+    enum ServerError: LocalizedError {
+        case unauthorized, quota, status(Int)
+
+        var errorDescription: String? {
+            switch self {
+            case .unauthorized: return "Server token missing or wrong. Paste API_TOKEN in Setup → Assistant Server."
+            case .quota: return "Gemini's free daily quota is used up. Try again later."
+            case .status(let code): return "The assistant server returned an error (\(code))."
+            }
+        }
+    }
+
+    /// Turns a non-2xx response into an error that says what to fix.
+    private static func check(_ response: URLResponse) throws {
+        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+        switch http.statusCode {
+        case 200..<300: return
+        case 401: throw ServerError.unauthorized
+        case 503: throw ServerError.quota
+        default: throw ServerError.status(http.statusCode)
+        }
+    }
 
     static var baseURL: URL? {
         let text = UserDefaults.standard.string(forKey: "backend_url") ?? ""
@@ -61,9 +84,7 @@ enum AssistantService {
         })
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try check(response)
         let list = try JSONDecoder().decode([Summary].self, from: data)
         return Dictionary(list.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
@@ -192,9 +213,7 @@ enum AssistantService {
         request.httpBody = try Context(agenda: agenda, habits: habits, change: change).encoded()
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try check(response)
         return try decoder.decode(RippleResult.self, from: data)
     }
 
@@ -241,9 +260,7 @@ enum AssistantService {
         body += Data("\r\n--\(boundary)--\r\n".utf8)
 
         let (data, response) = try await URLSession.shared.upload(for: request, from: body)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try check(response)
         return try decoder.decode(CaptureResult.self, from: data)
     }
 
@@ -282,9 +299,7 @@ enum AssistantService {
             request.httpBody = try JSONEncoder().encode(body)
         }
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try check(response)
         return try decoder.decode(T.self, from: data)
     }
 
@@ -301,9 +316,7 @@ enum AssistantService {
         request.timeoutInterval = 60
         authorize(&request)
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try check(response)
         return data
     }
 
@@ -331,9 +344,7 @@ enum AssistantService {
         request.timeoutInterval = 60
         authorize(&request)
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try check(response)
         return try JSONDecoder().decode([MailBrief].self, from: data)
             .sorted { $0.urgency > $1.urgency }
     }
@@ -373,9 +384,7 @@ enum AssistantService {
             Body(message: message, history: history, tz: TimeZone.current.identifier))
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try check(response)
         let reply = try decoder.decode(Reply.self, from: data)
         return (reply.reply, reply.memoriesUsed)
     }
@@ -407,9 +416,7 @@ enum AssistantService {
         request.timeoutInterval = 30
         authorize(&request)
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try check(response)
         return try decoder.decode(Recall.self, from: data)
     }
 
@@ -428,9 +435,7 @@ enum AssistantService {
         body += Data("\r\n--\(boundary)--\r\n".utf8)
 
         let (data, response) = try await URLSession.shared.upload(for: request, from: body)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try check(response)
         return try JSONDecoder().decode(ParsedLog.self, from: data)
     }
 }

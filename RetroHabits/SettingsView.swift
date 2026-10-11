@@ -75,7 +75,7 @@ struct SettingsView: View {
                 }
                 .buttonStyle(ComicButtonStyle())
                 .sheet(isPresented: $showingMemories) { AllMemoriesSheet() }
-                Text("Summarizes your agenda into glance cards. Simulator: leave blank. iPhone: your Mac's address on the same Wi-Fi, like http://Sids-MacBook.local:8000.")
+                Text("Leave blank to use the RetroHabits server. Paste the API_TOKEN from backend/.env as the token.")
                     .font(.comicLight(12))
                     .foregroundStyle(Comic.ink.opacity(0.65))
                     .fixedSize(horizontal: false, vertical: true)

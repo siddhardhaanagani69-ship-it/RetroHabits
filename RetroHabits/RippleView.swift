@@ -231,7 +231,7 @@ struct RippleView: View {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { shown = step }
             }
         } catch {
-            self.error = "Couldn't reach the assistant server. Is it running?"
+            self.error = error.localizedDescription
         }
     }
 

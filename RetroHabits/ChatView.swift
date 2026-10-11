@@ -120,7 +120,7 @@ struct ChatView: View {
             let (reply, memories) = try await AssistantService.chat(message, history: history)
             turns.append(.init(role: .assistant, text: reply, memories: memories))
         } catch {
-            self.error = "Couldn't reach the assistant server. Is it running?"
+            self.error = error.localizedDescription
         }
     }
 }

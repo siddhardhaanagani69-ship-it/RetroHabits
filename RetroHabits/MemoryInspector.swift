@@ -101,7 +101,7 @@ struct MemoryInspector: View {
             error = nil
             await onChange()
         } catch {
-            self.error = "Couldn't save the correction. Is the server reachable?"
+            self.error = error.localizedDescription
         }
     }
 
@@ -114,7 +114,7 @@ struct MemoryInspector: View {
             error = nil
             await onChange()
         } catch {
-            self.error = "Couldn't delete it. Is the server reachable?"
+            self.error = error.localizedDescription
         }
     }
 }

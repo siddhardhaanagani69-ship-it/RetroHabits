@@ -61,7 +61,7 @@ final class VoiceRecorder: ObservableObject {
         do {
             state = .done(try await AssistantService.log(audioAt: fileURL))
         } catch {
-            state = .failed("Couldn't reach the assistant server. Is it running?")
+            state = .failed(error.localizedDescription)
         }
     }
 }
