@@ -4,6 +4,9 @@ struct AgendaView: View {
     @EnvironmentObject var agenda: AgendaStore
     @EnvironmentObject var habits: HabitStore
     @State private var selectedItem: AgendaItem?
+    /// Habits whose box was just ticked, shown checked for a moment before sliding away.
+    @State private var checking: Set<UUID> = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The day the Schedule shows; today until you tap another date circle.
     @State private var selectedDay = Calendar.current.startOfDay(for: Date())
     /// `-agendaMode RIPPLE` at launch opens that segment; Schedule otherwise.
@@ -148,15 +151,18 @@ struct AgendaView: View {
     @ViewBuilder
     private var dayPlan: some View {
         let dayItems = agenda.visibleItems.filter { Calendar.current.isDate($0.start, inSameDayAs: selectedDay) }
+        let isToday = Calendar.current.isDateInToday(selectedDay)
+        // Today: every habit still to do (checked ones slide away). Other days: the plan.
         let dayHabits = habits.habits
-            .filter { $0.isScheduled(on: selectedDay) }
+            .filter { isToday ? !$0.isCompleted(on: selectedDay) : $0.isScheduled(on: selectedDay) }
             .sorted { ($0.reminderHour ?? 99, $0.reminderMinute ?? 0) < ($1.reminderHour ?? 99, $1.reminderMinute ?? 0) }
+        let doneToday = isToday ? habits.habits.filter { $0.isCompleted(on: selectedDay) }.count : 0
 
         SectionHeader(text: dayLabel(selectedDay))
 
-        if dayItems.isEmpty && dayHabits.isEmpty && !agenda.isLoading {
+        if dayItems.isEmpty && dayHabits.isEmpty && doneToday == 0 && !agenda.isLoading {
             Card {
-                Text(Calendar.current.isDateInToday(selectedDay) ? "Nothing planned today. Enjoy it." : "Nothing planned for this day.")
+                Text(isToday ? "Nothing planned today. Enjoy it." : "Nothing planned for this day.")
                     .font(.bodyMedium(14))
                     .foregroundStyle(Palette.muted)
             }
@@ -167,41 +173,59 @@ struct AgendaView: View {
                 .buttonStyle(.plain)
         }
 
-        if !dayHabits.isEmpty {
+        if !dayHabits.isEmpty || doneToday > 0 {
             Card {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Habits").font(.heading(18)).foregroundStyle(Palette.ink)
                     ForEach(dayHabits) { habit in
-                        let done = habit.isCompleted(on: selectedDay)
+                        let ticked = checking.contains(habit.id)
                         HStack(spacing: 10) {
-                            // Today's habits are checked off right here; other days just show the plan.
-                            if Calendar.current.isDateInToday(selectedDay) {
-                                Button { toggle(habit) } label: {
-                                    CheckCircle(checked: done)
+                            if isToday {
+                                Button { complete(habit) } label: {
+                                    CheckCircle(checked: ticked)
                                         .frame(width: 44, height: 44)
                                         .contentShape(.rect)
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel(done ? "\(habit.name), done today" : "Mark \(habit.name) done today")
+                                .disabled(ticked)
+                                .accessibilityLabel("Mark \(habit.name) done today")
                             }
                             Text(habit.icon).accessibilityHidden(true)
                             Text(habit.name)
                                 .font(.bodyMedium(15))
                                 .foregroundStyle(Palette.ink)
-                                .strikethrough(done, color: Palette.muted)
+                                .strikethrough(ticked, color: Palette.muted)
                             Spacer()
-                            Text(done ? "Done" : plannedTime(habit, on: selectedDay))
+                            Text(plannedTime(habit, on: selectedDay))
                                 .font(.subheadline)
-                                .foregroundStyle(done ? Palette.accent : Palette.muted)
+                                .foregroundStyle(Palette.muted)
                         }
+                        .transition(.asymmetric(insertion: .opacity,
+                                                removal: .move(edge: .trailing).combined(with: .opacity)))
+                    }
+                    if doneToday > 0 {
+                        Label(dayHabits.isEmpty ? "All \(doneToday) done today" : "\(doneToday) done today",
+                              systemImage: "checkmark.circle.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(Palette.green)
                     }
                 }
             }
         }
     }
 
-    private func toggle(_ habit: Habit) {
-        habits.toggleToday(habit)   // the checkbox animates itself
+    /// Ticks the box, lets the check show for a moment, then marks the habit done so
+    /// its row slides off and everything below moves up. Undo lives in Routine.
+    private func complete(_ habit: Habit) {
+        checking.insert(habit.id)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        Task {
+            try? await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 350))
+            withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) {
+                habits.toggleToday(habit)
+                checking.remove(habit.id)
+            }
+        }
     }
 
     /// A habit's time that day: a Ripple move wins over the usual reminder time.
