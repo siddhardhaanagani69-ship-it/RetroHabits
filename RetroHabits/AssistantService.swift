@@ -325,6 +325,20 @@ enum AssistantService {
         return data
     }
 
+    /// A chat reply read aloud (MP3), same voice as the briefing.
+    static func speech(for text: String) async throws -> Data {
+        guard let base = baseURL else { throw URLError(.badURL) }
+        var request = URLRequest(url: base.appendingPathComponent("speak"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60
+        authorize(&request)
+        request.httpBody = try JSONEncoder().encode(["text": text])
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try check(response)
+        return data
+    }
+
     // MARK: Inbox
 
     struct MailBrief: Decodable, Identifiable {

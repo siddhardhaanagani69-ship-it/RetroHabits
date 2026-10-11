@@ -20,6 +20,8 @@
 	<string>$(ASSISTANT_TOKEN)</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Snap a campus event flyer so RetroHabits can check it against your schedule.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Turns what you say into a question for your assistant.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Record quick voice notes about your workouts and day so your assistant can log and remember them.</string>
 	<key>NSLocalNetworkUsageDescription</key>

@@ -1,39 +1,39 @@
 import SwiftUI
 import AVFoundation
 
-/// Plays today's spoken briefing. Tap again to stop.
+/// Plays spoken audio from the server (the daily briefing, chat replies).
 @MainActor
-final class BriefingPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
+final class SpeechPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     enum State { case idle, loading, playing }
 
     @Published private(set) var state: State = .idle
     private var player: AVAudioPlayer?
 
-    func toggle() async {
-        switch state {
-        case .playing:
-            stop()
-        case .loading:
-            break
-        case .idle:
-            state = .loading
-            do {
-                let data = try await AssistantService.briefingAudio()
-                // Duck music rather than stop it, like a navigation prompt.
-                try AVAudioSession.sharedInstance().setCategory(.playback, options: [.duckOthers])
-                try AVAudioSession.sharedInstance().setActive(true)
-                let player = try AVAudioPlayer(data: data)
-                player.delegate = self
-                player.play()
-                self.player = player
-                state = .playing
-            } catch {
-                state = .idle
-            }
+    /// Tap behaviour for a play button: stops if something is playing.
+    func toggle(_ load: () async throws -> Data) async {
+        if state == .idle { await play(load) } else if state == .playing { stop() }
+    }
+
+    /// Plays new audio, cutting off whatever was playing.
+    func play(_ load: () async throws -> Data) async {
+        stop()
+        state = .loading
+        do {
+            let data = try await load()
+            // Duck music rather than stop it, like a navigation prompt.
+            try AVAudioSession.sharedInstance().setCategory(.playback, options: [.duckOthers])
+            try AVAudioSession.sharedInstance().setActive(true)
+            let player = try AVAudioPlayer(data: data)
+            player.delegate = self
+            player.play()
+            self.player = player
+            state = .playing
+        } catch {
+            state = .idle
         }
     }
 
-    private func stop() {
+    func stop() {
         player?.stop()
         player = nil
         state = .idle
@@ -46,11 +46,11 @@ final class BriefingPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
 }
 
 struct BriefingButton: View {
-    @StateObject private var player = BriefingPlayer()
+    @StateObject private var player = SpeechPlayer()
 
     var body: some View {
         Button {
-            Task { await player.toggle() }
+            Task { await player.toggle(AssistantService.briefingAudio) }
         } label: {
             switch player.state {
             case .loading: ProgressView().tint(Palette.ink)

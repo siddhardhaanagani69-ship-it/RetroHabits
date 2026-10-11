@@ -559,19 +559,37 @@ async def briefing_text(zone: ZoneInfo) -> str:
     return (resp.text or "").strip()
 
 
-@app.get("/briefing")
-async def briefing(tz: str = "UTC") -> Response:
-    """Today's agenda and training, as an MP3 read by ElevenLabs."""
+async def _mp3(text: str) -> Response:
     if not os.getenv("ELEVENLABS_API_KEY", "").startswith("sk_"):
         raise HTTPException(503, "ElevenLabs isn't set up (ELEVENLABS_API_KEY should start with sk_)")
-    text = await briefing_text(_zone(tz))
-    if not text:
-        raise HTTPException(502, "Couldn't write the briefing")
     try:
         audio = await asyncio.to_thread(_speak, text)
     except urllib.error.HTTPError as e:
         raise HTTPException(502, f"ElevenLabs error {e.code}: {e.read()[:200].decode(errors='replace')}")
     return Response(audio, media_type="audio/mpeg")
+
+
+@app.get("/briefing")
+async def briefing(tz: str = "UTC") -> Response:
+    """Today's agenda and training, as an MP3 read by ElevenLabs."""
+    text = await briefing_text(_zone(tz))
+    if not text:
+        raise HTTPException(502, "Couldn't write the briefing")
+    return await _mp3(text)
+
+
+class SpeakIn(BaseModel):
+    text: str
+
+
+@app.post("/speak")
+async def speak(body: SpeakIn) -> Response:
+    """Read a chat reply aloud in the same voice as the briefing."""
+    # Markdown marks would be read out literally ("asterisk asterisk").
+    text = re.sub(r"[*_#`>]+", "", body.text).strip()
+    if not text or len(text) > 2500:
+        raise HTTPException(400, "Text must be 1-2500 characters")
+    return await _mp3(text)
 
 
 
