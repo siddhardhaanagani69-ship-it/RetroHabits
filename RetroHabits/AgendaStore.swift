@@ -9,6 +9,10 @@ final class AgendaStore: ObservableObject {
     /// so a background wake updates the same store the app is showing.
     static let shared = AgendaStore()
 
+    private init() {
+        mergeRoutines()   // classes and shifts show before the first network refresh
+    }
+
     @Published var items: [AgendaItem] = []
     /// Recent important email for the Inbox panel (empty when Gmail isn't connected).
     @Published var mails: [AssistantService.MailBrief] = []
@@ -120,12 +124,14 @@ final class AgendaStore: ObservableObject {
         }
 
         items = deduped.sorted { $0.start < $1.start }
+        mergeRoutines()   // right away, so classes never blink out during a refresh
 
         // Glance summaries from the assistant backend. Raw items are already on
         // screen, so if the backend is down the agenda still works.
         if !items.isEmpty {
             do {
-                let summaries = try await AssistantService.summaries(for: items)
+                // Classes and shifts are the user's own words: nothing to summarize, no quota spent.
+                let summaries = try await AssistantService.summaries(for: items.filter { $0.source != .routine })
                 for index in items.indices {
                     guard let s = summaries[items[index].id] else { continue }
                     items[index].summary = s.summary
@@ -171,7 +177,16 @@ final class AgendaStore: ObservableObject {
         case .canvas: return 0
         case .apple: return 1
         case .email: return 2
+        case .routine: return 3
         }
+    }
+
+    /// Puts the next two weeks of classes and shifts into the agenda. Local and
+    /// instant, so it also runs whenever a routine is added, edited or deleted.
+    func mergeRoutines() {
+        items.removeAll { $0.source == .routine }
+        items += RoutineStore.shared.routines.flatMap { $0.occurrences() }
+        items.sort { $0.start < $1.start }
     }
 
     // MARK: Derived

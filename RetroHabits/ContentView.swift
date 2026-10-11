@@ -2,7 +2,7 @@ import SwiftUI
 
 enum AppTab: String, CaseIterable {
     case agenda = "Agenda"
-    case habits = "Habits"
+    case habits = "Routine"
     case ask = "Ask"
     case learn = "Learn"
     case stats = "Stats"
@@ -11,7 +11,7 @@ enum AppTab: String, CaseIterable {
     var icon: String {
         switch self {
         case .agenda: return "calendar"
-        case .habits: return "checkmark.circle"
+        case .habits: return "checklist"
         case .ask: return "bubble.left.and.text.bubble.right"
         case .learn: return "brain.head.profile"
         case .stats: return "chart.bar"
@@ -56,4 +56,5 @@ struct ContentView: View {
     ContentView()
         .environmentObject(HabitStore.shared)
         .environmentObject(AgendaStore.shared)
+        .environmentObject(RoutineStore.shared)
 }

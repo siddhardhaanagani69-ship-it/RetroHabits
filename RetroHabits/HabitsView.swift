@@ -3,16 +3,18 @@ import UIKit
 
 struct HabitsView: View {
     @EnvironmentObject var store: HabitStore
+    @EnvironmentObject private var routines: RoutineStore
     @State private var showingAdd = false
     @State private var editingHabit: Habit?
-    @State private var pressingHabitID: UUID?
+    @State private var addingRoutine = false
+    @State private var editingRoutine: Routine?
     @State private var milestoneBanner: String?
 
     var body: some View {
         ZStack {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 14) {
-                    ScreenHeader(title: "Habits", subtitle: "Hold a habit to mark it done.")
+                    ScreenHeader(title: "Routine", subtitle: "Habits to check off, plus your weekly classes and shifts.")
 
                     if !store.todaysHabits.isEmpty {
                         progressPanel
@@ -27,7 +29,7 @@ struct HabitsView: View {
                                 Text("No habits yet")
                                     .font(.heading(24))
                                     .foregroundStyle(Palette.red)
-                                Text("Tap New Habit below to create your first one.")
+                                Text("Add something you want to do regularly — then tap its circle each day you do it.")
                                     .font(.bodyMedium(14))
                                     .foregroundStyle(Palette.ink)
                             }
@@ -35,15 +37,29 @@ struct HabitsView: View {
                     }
 
                     if !store.todaysHabits.isEmpty {
-                        SectionHeader(text: "Today")
+                        SectionHeader(text: "Today's habits")
                         ForEach(Array(store.todaysHabits.enumerated()), id: \.element.id) { index, habit in
                             habitPanel(habit, active: true)
                         }
                     }
 
+                    SectionHeader(text: "Classes & shifts")
+                    if routines.routines.isEmpty {
+                        Card {
+                            Text("Add your classes or work shifts once — they repeat every week and remind you before they start.")
+                                .font(.bodyMedium(14))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    ForEach(routines.routines) { routine in
+                        Button { editingRoutine = routine } label: { RoutineRow(routine: routine) }
+                            .buttonStyle(.plain)
+                    }
+
                     let restHabits = store.habits.filter { !$0.isScheduled(on: Date()) }
                     if !restHabits.isEmpty {
-                        SectionHeader(text: "Off Duty")
+                        SectionHeader(text: "Habits not scheduled today")
                         ForEach(Array(restHabits.enumerated()), id: \.element.id) { index, habit in
                             habitPanel(habit, active: false)
                                 .opacity(0.75)
@@ -59,9 +75,15 @@ struct HabitsView: View {
                     .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
                     .padding(.top, 8)
 
-                    Text("Tap to edit · hold to complete")
-                        .font(.bodyRegular(11))
-                        .foregroundStyle(Palette.ink.opacity(0.5))
+                    Button { addingRoutine = true } label: {
+                        Label("Add Class or Shift", systemImage: "calendar.badge.plus")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(FilledButtonStyle())
+
+                    Text("Tap a circle to check off today · tap a name to edit")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                 }
                 .padding(.horizontal, 16)
@@ -87,6 +109,8 @@ struct HabitsView: View {
         }
         .sheet(isPresented: $showingAdd) { AddHabitView(habit: nil) }
         .sheet(item: $editingHabit) { habit in AddHabitView(habit: habit) }
+        .sheet(isPresented: $addingRoutine) { AddRoutineView(routine: nil) }
+        .sheet(item: $editingRoutine) { AddRoutineView(routine: $0) }
     }
 
     // MARK: Pieces
@@ -96,7 +120,7 @@ struct HabitsView: View {
         let done = store.todaysHabits.filter { $0.isCompleted(on: Date()) }.count
         return Card(fill: Palette.yellow) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(done == total ? "All done today!" : "\(done) OF \(total) DONE TODAY")
+                Text(done == total ? "All done today!" : "\(done) of \(total) done today")
                     .font(.heading(22))
                     .foregroundStyle(Palette.ink)
                 ProgressCapsule(progress: store.todayProgress)
@@ -105,49 +129,51 @@ struct HabitsView: View {
     }
 
 
+    /// The circle is a checkbox: tap it to mark today done (or undo). The rest of
+    /// the row opens the editor.
     private func habitPanel(_ habit: Habit, active: Bool) -> some View {
         let isDone = habit.isCompleted(on: Date())
-        let isPressing = pressingHabitID == habit.id
+        let streak = habit.streak
 
-        return Card(fill: isDone ? Palette.yellow.opacity(0.4) : Palette.panel) {
-            HStack(spacing: 12) {
-                CheckCircle(checked: isDone, pressing: isPressing)
-
-                Text(habit.icon)
-                    .font(.system(size: 26))
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(habit.name)
-                        .font(.bodyMedium(16))
-                        .foregroundStyle(Palette.ink)
-                        .strikethrough(isDone, color: Palette.red)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(habit.streak > 0 ? "\(habit.streak)-DAY STREAK 🔥" : "NO STREAK YET")
-                        .font(.heading(14))
-                        .foregroundStyle(habit.streak > 0 ? Palette.red : Palette.ink.opacity(0.5))
+        return Card(fill: isDone ? Palette.blue : Palette.panel) {
+            HStack(spacing: 8) {
+                Button { complete(habit, wasDone: isDone) } label: {
+                    CheckCircle(checked: isDone, pressing: false)
+                        .frame(width: 44, height: 44)
+                        .contentShape(.rect)
                 }
-                Spacer(minLength: 4)
+                .buttonStyle(.plain)
+                .accessibilityLabel(isDone ? "\(habit.name), done today" : "Mark \(habit.name) done today")
+
+                Button { editingHabit = habit } label: {
+                    HStack(spacing: 10) {
+                        Text(habit.icon)
+                            .font(.system(size: 26))
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(habit.name)
+                                .font(.bodyMedium(16))
+                                .foregroundStyle(Palette.ink)
+                                .strikethrough(isDone, color: .secondary)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(isDone ? "Done today" + (streak > 1 ? " · \(streak)-day streak 🔥" : "")
+                                 : streak > 0 ? "\(streak)-day streak 🔥" : "Not done yet today")
+                                .font(.subheadline)
+                                .foregroundStyle(isDone || streak > 0 ? Palette.red : .secondary)
+                        }
+                        Spacer(minLength: 4)
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(minHeight: 44)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Edit habit")
             }
         }
-        .scaleEffect(isPressing ? 0.96 : 1)
-        .animation(.easeOut(duration: 0.15), value: isPressing)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            editingHabit = habit
-        }
-        .onLongPressGesture(minimumDuration: 0.45) {
-            complete(habit, wasDone: isDone)
-        } onPressingChanged: { pressing in
-            pressingHabitID = pressing ? habit.id : nil
-        }
-        // The gestures above are invisible to VoiceOver and Switch Control; expose
-        // the same two actions so the app's main task works without a long press.
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
-        .accessibilityHint("Double-tap to edit. Swipe up or down for more actions.")
-        .accessibilityAction(named: isDone ? "Mark not done" : "Mark done") { complete(habit, wasDone: isDone) }
-        .accessibilityAction(named: "Edit") { editingHabit = habit }
         .contextMenu {
             Button {
                 editingHabit = habit

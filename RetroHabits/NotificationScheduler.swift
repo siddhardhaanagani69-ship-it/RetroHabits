@@ -122,7 +122,8 @@ final class NotificationScheduler: ObservableObject {
         //    Submittable Canvas work is covered by the deadline pass above.
         if preferences.eventAlertsEnabled {
             let minutes = preferences.profile.eventLeadMinutes
-            for item in items where !item.isAllDay && !item.kind.isSubmittable {
+            // Classes and shifts have their own repeating reminders (RoutineStore).
+            for item in items where !item.isAllDay && !item.kind.isSubmittable && item.source != .routine {
                 guard let fire = Calendar.current.date(byAdding: .minute, value: -minutes, to: item.start),
                       fire > now else { continue }
                 var body = "Starts at \(Self.timeFormatter.string(from: item.start))"

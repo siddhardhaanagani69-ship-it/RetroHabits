@@ -19,6 +19,7 @@ struct RetroHabitsApp: App {
             ContentView()
                 .environmentObject(habitStore)
                 .environmentObject(agendaStore)
+                .environmentObject(RoutineStore.shared)
                 .task {
                     await NotificationScheduler.shared.refreshAuthorizationStatus()
                 }

@@ -11,6 +11,7 @@ enum Palette {
     static let yellow   = Color(.systemYellow)
     static let blue     = Color(.systemBlue)
     static let orange   = Color(.systemOrange)
+    static let purple   = Color(.systemPurple)
 }
 
 extension Font {
@@ -45,6 +46,7 @@ extension AgendaSource {
         case .canvas: return "Canvas"
         case .apple: return "Calendar"
         case .email: return "Email"
+        case .routine: return "Weekly"
         }
     }
 
@@ -53,6 +55,7 @@ extension AgendaSource {
         case .canvas: return Palette.red
         case .apple: return Palette.blue
         case .email: return Palette.orange
+        case .routine: return Palette.purple
         }
     }
 }

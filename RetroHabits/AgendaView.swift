@@ -169,25 +169,36 @@ struct AgendaView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Habits").font(.heading(18)).foregroundStyle(Palette.ink)
                     ForEach(dayHabits) { habit in
+                        let done = habit.isCompleted(on: selectedDay)
                         HStack(spacing: 10) {
-                            Text(habit.icon)
+                            // Today's habits are checked off right here; other days just show the plan.
+                            if Calendar.current.isDateInToday(selectedDay) {
+                                Button { toggle(habit) } label: {
+                                    CheckCircle(checked: done, pressing: false)
+                                        .frame(width: 44, height: 44)
+                                        .contentShape(.rect)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(done ? "\(habit.name), done today" : "Mark \(habit.name) done today")
+                            }
+                            Text(habit.icon).accessibilityHidden(true)
                             Text(habit.name)
                                 .font(.bodyMedium(15))
                                 .foregroundStyle(Palette.ink)
-                                .strikethrough(habit.isCompleted(on: selectedDay), color: .secondary)
+                                .strikethrough(done, color: .secondary)
                             Spacer()
-                            if habit.isCompleted(on: selectedDay) {
-                                Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.blue)
-                            } else {
-                                Text(plannedTime(habit, on: selectedDay))
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
+                            Text(done ? "Done" : plannedTime(habit, on: selectedDay))
+                                .font(.subheadline)
+                                .foregroundStyle(done ? Palette.blue : .secondary)
                         }
                     }
                 }
             }
         }
+    }
+
+    private func toggle(_ habit: Habit) {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { habits.toggleToday(habit) }
     }
 
     /// A habit's time that day: a Ripple move wins over the usual reminder time.

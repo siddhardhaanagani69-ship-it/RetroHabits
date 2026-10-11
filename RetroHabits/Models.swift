@@ -101,6 +101,7 @@ enum AgendaSource: String, Codable, CaseIterable {
     case canvas = "CANVAS"
     case apple = "IPHONE"
     case email = "EMAIL"
+    case routine = "ROUTINE"
 }
 
 /// What kind of thing an agenda item is — drives the icon and wording.
