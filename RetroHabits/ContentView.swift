@@ -3,6 +3,7 @@ import SwiftUI
 enum AppTab: String, CaseIterable {
     case agenda = "Agenda"
     case habits = "Routine"
+    case money = "Money"
     case ask = "Ask"
     case learn = "Learn"
     case stats = "Stats"
@@ -12,6 +13,7 @@ enum AppTab: String, CaseIterable {
         switch self {
         case .agenda: return "calendar"
         case .habits: return "checklist"
+        case .money: return "dollarsign.circle"
         case .ask: return "bubble.left.and.text.bubble.right"
         case .learn: return "brain.head.profile"
         case .stats: return "chart.bar"
@@ -44,6 +46,7 @@ struct ContentView: View {
         switch tab {
         case .agenda: AgendaView()
         case .habits: HabitsView()
+        case .money: MoneyView()
         case .ask: ChatView(turns: $chatTurns)
         case .learn: LearnView()
         case .stats: StatsView()

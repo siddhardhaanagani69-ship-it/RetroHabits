@@ -92,6 +92,8 @@ struct AgendaView: View {
     private var scheduleContent: some View {
         DayStrip(selected: $selectedDay, busyDays: Set(agenda.visibleItems.map { Calendar.current.startOfDay(for: $0.start) }))
 
+        MoneyGlance()
+
         ForEach(agenda.errors, id: \.self) { error in
             Card(fill: Palette.yellow) {
                 Label(error, systemImage: "exclamationmark.triangle.fill")

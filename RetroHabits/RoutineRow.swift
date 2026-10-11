@@ -17,7 +17,7 @@ struct RoutineRow: View {
                         .font(.bodyMedium(16))
                         .foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading)
-                    Text("\(days) · \(RoutineStore.time(routine))")
+                    Text(detail)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     if let reminder {
@@ -36,6 +36,19 @@ struct RoutineRow: View {
         .accessibilityHint("Edit \(routine.kind.label.lowercased())")
     }
 
+    /// "Mon and Wed · 10:00–11:15 AM", "Monthly on day 1 · $900.00", "Tue · 2–6 PM · $15.00/hr".
+    private var detail: String {
+        let money = { (value: Double) in value.formatted(.currency(code: Routine.currency)) }
+        switch routine.kind {
+        case .bill:
+            let when = routine.monthlyDay.map { "Monthly on day \($0)" } ?? "Every \(days)"
+            return [when, routine.amount.map(money)].compactMap { $0 }.joined(separator: " · ")
+        default:
+            return ["\(days) · \(RoutineStore.time(routine))", routine.hourlyRate.map { "\(money($0))/hr" }]
+                .compactMap { $0 }.joined(separator: " · ")
+        }
+    }
+
     /// "Mon, Wed" in calendar order, or "Every day".
     private var days: String {
         guard routine.weekdays.count < 7 else { return "Every day" }
@@ -46,6 +59,7 @@ struct RoutineRow: View {
     private var reminder: String? {
         switch routine.remindMinutesBefore {
         case nil: nil
+        case 0? where routine.kind == .bill: "Reminder on the due day"
         case 0?: "Reminder when it starts"
         case let m?: "Reminder \(m) min before"
         }

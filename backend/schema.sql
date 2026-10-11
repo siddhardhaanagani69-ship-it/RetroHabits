@@ -27,3 +27,22 @@ create table if not exists logs (
 );
 select create_hypertable('logs', by_range('ts'), if_not_exists => true);
 create index if not exists logs_kind_ts on logs (kind, ts desc);
+
+-- Money. Recorded spending is time-series data: a hypertable, bucketed by week for trends.
+create table if not exists spending (
+    id       uuid not null default gen_random_uuid(),
+    ts       timestamptz not null,             -- when the money was spent
+    amount   numeric(10, 2) not null check (amount >= 0),
+    category text not null,
+    merchant text,
+    note     text,
+    source   text not null                     -- text | receipt
+);
+select create_hypertable('spending', by_range('ts'), if_not_exists => true);
+create index if not exists spending_id on spending (id);
+
+-- Small settings the server needs too (the weekly budget). One user, so plain key/value.
+create table if not exists prefs (
+    key   text primary key,
+    value jsonb not null
+);

@@ -14,6 +14,10 @@ struct AddRoutineView: View {
     @State private var end = Calendar.current.date(bySettingHour: 11, minute: 15, second: 0, of: .now) ?? .now
     @State private var location = ""
     @State private var remind: Int? = 15
+    @State private var hourlyRate: Double?
+    @State private var amount: Double?
+    @State private var billMonthly = true
+    @State private var monthlyDay = 1
 
     private let reminderChoices: [Int?] = [nil, 0, 5, 10, 15, 30, 60]
 
@@ -28,22 +32,60 @@ struct AddRoutineView: View {
                     .pickerStyle(.segmented)
                 }
 
-                Section("Repeats every") {
-                    WeekdayPicker(selection: $weekdays)
+                if kind == .bill {
+                    Section {
+                        TextField("Amount", value: $amount, format: .currency(code: Routine.currency))
+                            .keyboardType(.decimalPad)
+                        Picker("Repeats", selection: $billMonthly) {
+                            Text("Monthly").tag(true)
+                            Text("Weekly").tag(false)
+                        }
+                        .pickerStyle(.segmented)
+                        if billMonthly {
+                            Picker("Due on day", selection: $monthlyDay) {
+                                ForEach(1...28, id: \.self) { Text("\($0)").tag($0) }
+                            }
+                        }
+                    } header: {
+                        Text("Bill")
+                    } footer: {
+                        Text("Days 1–28, so it lands in every month.")
+                    }
                 }
 
-                Section("Time") {
-                    DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute)
-                    DatePicker("Ends", selection: $end, displayedComponents: .hourAndMinute)
-                    TextField("Location (optional)", text: $location)
+                if kind != .bill || !billMonthly {
+                    Section("Repeats every") {
+                        WeekdayPicker(selection: $weekdays)
+                    }
+                }
+
+                if kind != .bill {
+                    Section("Time") {
+                        DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute)
+                        DatePicker("Ends", selection: $end, displayedComponents: .hourAndMinute)
+                        TextField("Location (optional)", text: $location)
+                    }
+                }
+
+                if kind == .shift {
+                    Section {
+                        TextField("Hourly pay (optional)", value: $hourlyRate, format: .currency(code: Routine.currency))
+                            .keyboardType(.decimalPad)
+                    } footer: {
+                        Text("Shows this week's planned pay in Money. Planned pay isn't counted as earned.")
+                    }
                 }
 
                 Section {
                     Picker("Remind me", selection: $remind) {
-                        ForEach(reminderChoices, id: \.self) { Text(Self.reminderLabel($0)).tag($0) }
+                        ForEach(kind == .bill ? [nil, 0] : reminderChoices, id: \.self) {
+                            Text(kind == .bill ? Self.billReminderLabel($0) : Self.reminderLabel($0)).tag($0)
+                        }
                     }
                 } footer: {
-                    Text("Repeats every week on the days you pick. Shows in your Agenda, and Ripple checks it for conflicts.")
+                    Text(kind == .bill
+                         ? "Shows on its due date in your Agenda and Money."
+                         : "Repeats every week on the days you pick. Shows in your Agenda, and Ripple checks it for conflicts.")
                 }
 
                 if let routine {
@@ -65,7 +107,9 @@ struct AddRoutineView: View {
     }
 
     private var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty && !weekdays.isEmpty && minutes(end) > minutes(start)
+        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
+        if kind == .bill { return (amount ?? 0) > 0 && (billMonthly || !weekdays.isEmpty) }
+        return !weekdays.isEmpty && minutes(end) > minutes(start)
     }
 
     private func minutes(_ date: Date) -> Int {
@@ -80,6 +124,10 @@ struct AddRoutineView: View {
         weekdays = routine.weekdays
         location = routine.location ?? ""
         remind = routine.remindMinutesBefore
+        hourlyRate = routine.hourlyRate
+        amount = routine.amount
+        billMonthly = routine.monthlyDay != nil || routine.kind != .bill
+        monthlyDay = routine.monthlyDay ?? 1
         if let s = routine.start(on: .now) {
             start = s
             end = s.addingTimeInterval(TimeInterval(routine.durationMinutes * 60))
@@ -98,6 +146,17 @@ struct AddRoutineView: View {
         saved.durationMinutes = minutes(end) - minutes(start)
         saved.location = trimmedLocation.isEmpty ? nil : trimmedLocation
         saved.remindMinutesBefore = remind
+        saved.hourlyRate = kind == .shift ? hourlyRate : nil
+        saved.amount = kind == .bill ? amount : nil
+        saved.monthlyDay = kind == .bill && billMonthly ? monthlyDay : nil
+        if kind == .bill {
+            // A bill is a due date: reminder at 9 AM that day, no time block.
+            saved.startHour = 9
+            saved.startMinute = 0
+            saved.durationMinutes = 0
+            saved.remindMinutesBefore = remind == nil ? nil : 0
+            if billMonthly { saved.weekdays = [] }
+        }
         if remind != nil {
             Task { await NotificationScheduler.shared.requestPermission() }
         }
@@ -108,6 +167,10 @@ struct AddRoutineView: View {
     private func delete(_ routine: Routine) {
         store.delete(routine)
         dismiss()
+    }
+
+    private static func billReminderLabel(_ minutes: Int?) -> String {
+        minutes == nil ? "No reminder" : "On the due day, 9 AM"
     }
 
     private static func reminderLabel(_ minutes: Int?) -> String {

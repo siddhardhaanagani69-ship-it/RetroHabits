@@ -46,9 +46,8 @@ final class RoutineStore: ObservableObject {
 
     /// Routines on a given day, earliest first.
     func routines(on day: Date) -> [Routine] {
-        let weekday = Calendar.current.component(.weekday, from: day)
-        return routines
-            .filter { $0.weekdays.contains(weekday) }
+        routines
+            .filter { $0.occurs(on: day) }
             .sorted { ($0.startHour, $0.startMinute) < ($1.startHour, $1.startMinute) }
     }
 
@@ -65,6 +64,22 @@ final class RoutineStore: ObservableObject {
         let center = UNUserNotificationCenter.current()
         let startText = Self.time(routine)
 
+        // Monthly bills: one repeating reminder at 9 AM on the due day.
+        if let day = routine.monthlyDay {
+            let content = UNMutableNotificationContent()
+            content.title = "\(routine.name) is due today"
+            content.body = routine.amount.map { $0.formatted(.currency(code: Routine.currency)) } ?? ""
+            content.sound = .default
+            center.add(UNNotificationRequest(
+                identifier: "routine-\(routine.id.uuidString)-month",
+                content: content,
+                trigger: UNCalendarNotificationTrigger(
+                    dateMatching: DateComponents(day: day, hour: routine.startHour, minute: routine.startMinute),
+                    repeats: true)
+            ))
+            return
+        }
+
         for weekday in routine.weekdays {
             // The reminder can fall on the previous day (a 12:10 AM start, 30 min lead).
             var minutes = routine.startHour * 60 + routine.startMinute - lead
@@ -76,8 +91,13 @@ final class RoutineStore: ObservableObject {
             let components = DateComponents(hour: minutes / 60, minute: minutes % 60, weekday: day)
 
             let content = UNMutableNotificationContent()
-            content.title = lead == 0 ? "\(routine.name) is starting" : "\(routine.name) in \(lead) min"
-            content.body = [startText, routine.location].compactMap { $0 }.joined(separator: " · ")
+            if routine.kind == .bill {
+                content.title = "\(routine.name) is due today"
+                content.body = routine.amount.map { $0.formatted(.currency(code: Routine.currency)) } ?? ""
+            } else {
+                content.title = lead == 0 ? "\(routine.name) is starting" : "\(routine.name) in \(lead) min"
+                content.body = [startText, routine.location].compactMap { $0 }.joined(separator: " · ")
+            }
             content.sound = .default
             center.add(UNNotificationRequest(
                 identifier: "routine-\(routine.id.uuidString)-\(weekday)",
@@ -88,7 +108,7 @@ final class RoutineStore: ObservableObject {
     }
 
     private func cancelReminders(for routine: Routine) {
-        let ids = (1...7).map { "routine-\(routine.id.uuidString)-\($0)" }
+        let ids = (1...7).map { "routine-\(routine.id.uuidString)-\($0)" } + ["routine-\(routine.id.uuidString)-month"]
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
     }
 

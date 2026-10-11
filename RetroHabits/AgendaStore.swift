@@ -160,6 +160,7 @@ final class AgendaStore: ObservableObject {
             items.sort { $0.start < $1.start }
         }
 
+        await MoneyStore.shared.refresh()   // the budget line on the home screen
         lastRefreshed = Date()
         isLoading = false
 

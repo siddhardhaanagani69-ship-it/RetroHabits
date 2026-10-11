@@ -37,10 +37,10 @@ load_dotenv(Path(__file__).with_name(".env"))
 DB = os.getenv("DATABASE_URL")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 # One shared client: a throwaway Client() gets garbage-collected mid-request.
-# No hidden SDK retries (they can sleep for minutes on a 429) and a hard timeout:
+# No hidden SDK retries (they can sleep for minutes on a 429) and a 25 s timeout:
 # a model that fails or stalls hands over to the next one in GEMINI_MODELS instead.
 gemini = genai.Client(http_options=types.HttpOptions(
-    timeout=45_000, retry_options=types.HttpRetryOptions(attempts=1)))
+    timeout=25_000, retry_options=types.HttpRetryOptions(attempts=1)))
 # The free tier caps requests per model per day (20 for gemini-3.8-flash), and each
 # model has its own quota, so when one runs out (429) or is retired (404) the next takes over.
 GEMINI_MODELS = [GEMINI_MODEL] + [
@@ -438,7 +438,8 @@ def _context(zone: ZoneInfo) -> str:
         for received, subject, summary, action, due, detail in mails) or "- no recent email"
     return (f"[Background from the app, not written by the user. Now: {now:%A %B %d %Y, %H:%M}]\n"
             f"Upcoming:\n{agenda}\n\nLogged in the last 7 days:\n{recent}\n\n"
-            f"Recent email (last 3 days, newest first):\n{inbox}")
+            f"Recent email (last 3 days, newest first):\n{inbox}\n\n"
+            f"Money:\n{_money_context(zone)}")
 
 
 _memory_thread: str | None = None
@@ -681,6 +682,7 @@ class ParsedChange(BaseModel):
     hypothetical: bool
     stated: list[str]
     assumptions: list[str]
+    cost: float | None = None     # money the change involves, only when an amount is stated
 
 
 RIPPLE_PROMPT = """The student describes a change to their schedule, or asks "what if". Match it to their agenda.
@@ -693,6 +695,7 @@ Return:
 - stated: the facts they actually said, as short phrases
 - assumptions: everything you filled in that they did NOT say, e.g. "Assumed 'evening' means 6 PM",
   "Assumed this Friday, not next". Empty list if nothing was assumed.
+- cost: the amount of money this involves if they state one ("$45 ticket", "costs 20 bucks"), as a number. Null otherwise; never guess a price.
 Never invent reasons, feelings or consequences.
 
 Now: {now}
@@ -774,7 +777,19 @@ async def ripple_mode(body: RippleIn) -> dict:
             "stated": p.stated, "assumptions": assumptions,
         },
         "conflicts": conflicts,
+        "money": _planned_cost(zone, p.cost, change.start if change else now),
     }
+
+
+def _planned_cost(zone: ZoneInfo, cost: float | None, at: datetime) -> dict | None:
+    """What a stated cost would leave of that week's budget. It stays a plan: nothing
+    is recorded as spent until the user logs it."""
+    if cost is None or cost < 0:
+        return None
+    m = _money(zone, at)
+    return {"cost": round(cost, 2), "budget": m["budget"], "remaining": m["remaining"],
+            "after": round(m["remaining"] - cost, 2) if m["remaining"] is not None else None,
+            "week_start": m["week_start"]}
 
 
 # MARK: - Campus Capture
@@ -786,6 +801,7 @@ class FlyerEvent(BaseModel):
     end: datetime | None
     location: str | None
     cost: str | None            # exactly as printed ("Free", "$5"), null if the flyer doesn't say
+    cost_amount: float | None = None   # that price as a number; 0 when free; null when not printed
     organizer: str | None
     summary: str                # one plain line
     topics: list[str]           # 1-4 subject words
@@ -813,6 +829,7 @@ FLYER_PROMPT = """This is a photo of a campus event flyer or announcement. Extra
 - start / end: ISO 8601 with UTC offset in {tz}. Null if not printed. If the year isn't printed,
   use the next upcoming date and say so in assumptions.
 - cost: exactly as printed, or null if not mentioned. Never guess a price.
+- cost_amount: that price as a number (0 if it says free), null if no price is printed.
 - missing: details a student would need that the flyer does NOT give
   (e.g. "price", "end time", "room number", "how to sign up")
 - assumptions: anything you filled in that is not printed
@@ -895,6 +912,13 @@ async def capture(image: UploadFile, context: str = Form("{}")) -> dict:
     else:
         verdict.append("Fits your calendar.")
     verdict.append(f"Cost: {ev.cost}." if ev.cost else "The flyer doesn't say what it costs.")
+    plan = _planned_cost(zone, ev.cost_amount, start or now) if ev.cost_amount else None
+    if plan and plan["remaining"] is None:
+        verdict.append("Set a weekly budget in Money to see whether it fits.")
+    elif plan and plan["after"] >= 0:
+        verdict.append(f"Fits that week's budget: ${plan['remaining']:.2f} left → ${plan['after']:.2f}.")
+    elif plan:
+        verdict.append(f"Over that week's budget by ${-plan['after']:.2f} (${plan['remaining']:.2f} left).")
     # The cost line above already covers a missing price.
     other_missing = [m for m in ev.missing if not re.search(r"cost|price|fee", m, re.I)]
     if other_missing:
@@ -939,3 +963,171 @@ async def forget_memory(memory_id: str) -> dict:
     except BackboardError as e:
         raise HTTPException(502, f"Backboard couldn't delete it: {e}")
     return {"deleted": memory_id}
+
+
+# MARK: - Money
+
+SPEND_CATEGORIES = ["food", "groceries", "transport", "shopping", "entertainment",
+                    "education", "bills", "health", "other"]
+
+
+class SpendParse(BaseModel):
+    is_spending: bool
+    amount: float | None          # total actually paid; null when not stated
+    category: Literal["food", "groceries", "transport", "shopping", "entertainment",
+                      "education", "bills", "health", "other"]
+    merchant: str | None
+    when: datetime | None         # only when stated ("yesterday", the receipt date)
+    note: str | None              # a few words: what it was
+
+
+SPEND_PROMPT = """Extract ONE purchase from this {source}.
+- amount: the total actually paid, as a number without a currency sign. Null if no amount is stated — never guess or estimate.
+- category: the best fit from the list.
+- merchant: the shop or service, if stated.
+- when: ISO 8601 with UTC offset in {tz}, only if a date or day is stated ("yesterday", the receipt's date). Else null.
+- note: a few words saying what it was, e.g. "lunch", "bus pass".
+- is_spending: false if this isn't a purchase at all.
+Now: {now}
+{text}"""
+
+
+class BudgetIn(BaseModel):
+    weekly: float | None          # null clears the budget
+
+
+def _week(zone: ZoneInfo, at: datetime | None = None) -> tuple[datetime, datetime]:
+    """Monday 00:00 to the next Monday, in the user's time zone."""
+    day = (at or datetime.now(zone)).astimezone(zone).date()
+    start = datetime.combine(day - timedelta(days=day.weekday()), time.min, zone)
+    return start, start + timedelta(days=7)
+
+
+def _budget(conn) -> float | None:
+    row = conn.execute("select value from prefs where key = 'weekly_budget'").fetchone()
+    return float(row[0]) if row and row[0] is not None else None
+
+
+def _money(zone: ZoneInfo, at: datetime | None = None) -> dict:
+    """Recorded spending for the week containing `at`, against the weekly budget."""
+    start, end = _week(zone, at)
+    with psycopg.connect(DB) as conn:
+        budget = _budget(conn)
+        spent = float(conn.execute("select coalesce(sum(amount), 0) from spending where ts >= %s and ts < %s",
+                                   (start, end)).fetchone()[0])
+    return {"week_start": start, "budget": budget, "spent": round(spent, 2),
+            "remaining": round(budget - spent, 2) if budget is not None else None}
+
+
+def _money_line(zone: ZoneInfo) -> str:
+    m = _money(zone)
+    if m["budget"] is None:
+        return f"Spent ${m['spent']:.2f} this week (no weekly budget set)."
+    return f"Weekly budget ${m['budget']:.2f}: spent ${m['spent']:.2f}, ${m['remaining']:.2f} left."
+
+
+@app.get("/money")
+def money(tz: str = "UTC") -> dict:
+    """This week's budget, totals by category and every entry."""
+    zone = _zone(tz)
+    start, end = _week(zone)
+    with psycopg.connect(DB) as conn:
+        entries = conn.execute(
+            """select id, ts, amount, category, merchant, note, source from spending
+               where ts >= %s and ts < %s order by ts desc""", (start, end)).fetchall()
+    by_category: dict[str, float] = {}
+    for _, _, amount, category, *_ in entries:
+        by_category[category] = round(by_category.get(category, 0) + float(amount), 2)
+    return {
+        **_money(zone),
+        "by_category": [{"category": c, "amount": a} for c, a in sorted(by_category.items(), key=lambda x: -x[1])],
+        "entries": [{"id": str(i), "ts": ts, "amount": float(a), "category": c, "merchant": m, "note": n, "source": s}
+                    for i, ts, a, c, m, n, s in entries],
+    }
+
+
+@app.get("/money/trend")
+def money_trend(tz: str = "UTC", weeks: int = 8) -> list[dict]:
+    """Spending per week and category, via Tiger's time_bucket in the user's time zone."""
+    zone = _zone(tz)
+    weeks = max(1, min(weeks, 26))
+    start, _ = _week(zone)
+    since = start - timedelta(weeks=weeks - 1)
+    with psycopg.connect(DB) as conn:
+        rows = conn.execute(
+            """select time_bucket('1 week', ts, %s) as week, category, sum(amount)
+               from spending where ts >= %s group by week, category order by week""",
+            (tz, since)).fetchall()
+    return [{"week_start": w, "category": c, "amount": round(float(a), 2)} for w, c, a in rows]
+
+
+@app.post("/spend")
+async def add_spend(text: str | None = Form(None), image: UploadFile | None = None,
+                    tz: str = Form("UTC")) -> dict:
+    """Record a purchase from a typed/spoken sentence or a receipt photo."""
+    zone = _zone(tz)
+    now = datetime.now(zone)
+    if image is not None:
+        data = await image.read()
+        if not data or len(data) > MAX_IMAGE_BYTES:
+            raise HTTPException(413, "Image missing or larger than 8 MB")
+        contents = [types.Part.from_bytes(data=data, mime_type=image.content_type or "image/jpeg"),
+                    SPEND_PROMPT.format(source="receipt photo", tz=tz, now=f"{now:%A %B %d %Y %H:%M}", text="")]
+        source = "receipt"
+    elif text and text.strip() and len(text) <= 500:
+        contents = SPEND_PROMPT.format(source="note", tz=tz, now=f"{now:%A %B %d %Y %H:%M}", text=f"Note: {text}")
+        source = "text"
+    else:
+        raise HTTPException(400, "Say what you spent, or attach a receipt")
+
+    resp = await generate(contents=contents,
+                          config={"response_mime_type": "application/json", "response_schema": SpendParse})
+    p: SpendParse | None = resp.parsed
+    if p is None or not p.is_spending:
+        raise HTTPException(422, "That doesn't look like a purchase.")
+    if p.amount is None or p.amount < 0:
+        raise HTTPException(422, "How much was it? Add the amount, e.g. \"$12 on lunch\".")
+    when = p.when if p.when and p.when.tzinfo else (p.when.replace(tzinfo=zone) if p.when else now)
+    if when > now + timedelta(minutes=5):
+        when = now   # a purchase can't be in the future; the stated day was misread
+    with psycopg.connect(DB) as conn:
+        new_id = conn.execute(
+            """insert into spending (ts, amount, category, merchant, note, source)
+               values (%s, %s, %s, %s, %s, %s) returning id""",
+            (when, round(p.amount, 2), p.category, p.merchant, p.note, source)).fetchone()[0]
+    return {"id": str(new_id), "ts": when, "amount": round(p.amount, 2), "category": p.category,
+            "merchant": p.merchant, "note": p.note, "source": source}
+
+
+@app.delete("/spend/{entry_id}")
+def delete_spend(entry_id: str) -> dict:
+    with psycopg.connect(DB) as conn:
+        n = conn.execute("delete from spending where id::text = %s", (entry_id,)).rowcount
+    if not n:
+        raise HTTPException(404, "No such entry")
+    return {"deleted": entry_id}
+
+
+@app.put("/budget")
+def set_budget(body: BudgetIn) -> dict:
+    if body.weekly is not None and not 0 < body.weekly < 1_000_000:
+        raise HTTPException(400, "Budget must be a positive amount")
+    with psycopg.connect(DB) as conn:
+        if body.weekly is None:
+            conn.execute("delete from prefs where key = 'weekly_budget'")
+        else:
+            conn.execute("""insert into prefs (key, value) values ('weekly_budget', %s)
+                            on conflict (key) do update set value = excluded.value""", (Jsonb(round(body.weekly, 2)),))
+    return {"weekly": body.weekly}
+
+
+def _money_context(zone: ZoneInfo) -> str:
+    """Budget status and the last week of recorded spending, for Ask and the briefing."""
+    with psycopg.connect(DB) as conn:
+        rows = conn.execute(
+            "select ts, amount, category, merchant, note from spending where ts >= %s order by ts desc limit 15",
+            (datetime.now(zone) - timedelta(days=7),)).fetchall()
+    recent = "\n".join(
+        f"- {ts.astimezone(zone):%a %b %d}: ${float(a):.2f} {c}" + (f" at {m}" if m else "") + (f" ({n})" if n else "")
+        for ts, a, c, m, n in rows) or "- nothing recorded"
+    return f"{_money_line(zone)}\nRecorded spending, last 7 days (planned costs are not included):\n{recent}"

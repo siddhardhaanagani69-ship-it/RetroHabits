@@ -161,6 +161,15 @@ enum AssistantService {
         let clarify: String?
         let change: Change
         let conflicts: [Conflict]
+        /// A stated cost and what it would leave of that week's budget. Planned, never spent.
+        let money: PlannedCost?
+    }
+
+    struct PlannedCost: Decodable {
+        let cost: Double
+        let budget: Double?
+        let remaining: Double?
+        let after: Double?
     }
 
     /// Dates from the server come with or without fractional seconds.
@@ -173,6 +182,9 @@ enum AssistantService {
         decoder.dateDecodingStrategy = .custom { decoder in
             let text = try decoder.singleValueContainer().decode(String.self)
             if let date = plain.date(from: text) ?? fractional.date(from: text) { return date }
+            // Python sends microseconds (6 digits), which ISO8601DateFormatter rejects; drop them.
+            let trimmed = text.replacingOccurrences(of: #"\.\d+"#, with: "", options: .regularExpression)
+            if let date = plain.date(from: trimmed) { return date }
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Bad date \(text)"))
         }
         return decoder
@@ -227,6 +239,121 @@ enum AssistantService {
         let (data, response) = try await URLSession.shared.data(for: request)
         try check(response)
         return try decoder.decode(RippleResult.self, from: data)
+    }
+
+    // MARK: Money
+
+    struct MoneySummary: Decodable {
+        struct CategoryTotal: Decodable, Identifiable {
+            let category: String
+            let amount: Double
+            var id: String { category }
+        }
+        let weekStart: Date
+        let budget: Double?
+        let spent: Double
+        let remaining: Double?
+        let byCategory: [CategoryTotal]
+        let entries: [Spend]
+    }
+
+    struct Spend: Decodable, Identifiable {
+        let id: String
+        let ts: Date
+        let amount: Double
+        let category: String
+        let merchant: String?
+        let note: String?
+        let source: String
+    }
+
+    struct TrendPoint: Decodable, Identifiable {
+        let weekStart: Date
+        let category: String
+        let amount: Double
+        var id: String { "\(weekStart.timeIntervalSince1970)-\(category)" }
+    }
+
+    /// This week's budget, spending by category and every entry.
+    static func money() async throws -> MoneySummary {
+        try await get("money", query: ["tz": TimeZone.current.identifier])
+    }
+
+    /// Weekly spending per category for the last 8 weeks.
+    static func moneyTrend() async throws -> [TrendPoint] {
+        try await get("money/trend", query: ["tz": TimeZone.current.identifier, "weeks": "8"])
+    }
+
+    /// Records a purchase from a sentence ("$12 on lunch") or a receipt photo.
+    static func addSpending(text: String? = nil, receiptJPEG: Data? = nil) async throws -> Spend {
+        guard let base = baseURL else { throw URLError(.badURL) }
+        let boundary = UUID().uuidString
+        var request = URLRequest(url: base.appendingPathComponent("spend"))
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 90
+        authorize(&request)
+
+        var body = Data()
+        func field(_ name: String, _ value: String) {
+            body += Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".utf8)
+        }
+        field("tz", TimeZone.current.identifier)
+        if let text { field("text", text) }
+        if let receiptJPEG {
+            body += Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"image\"; filename=\"receipt.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n".utf8)
+            body += receiptJPEG
+            body += Data("\r\n".utf8)
+        }
+        body += Data("--\(boundary)--\r\n".utf8)
+
+        let (data, response) = try await URLSession.shared.upload(for: request, from: body)
+        // A 422 carries a question for the user ("How much was it?"); show it as-is.
+        if let http = response as? HTTPURLResponse, http.statusCode == 422,
+           let detail = try? JSONDecoder().decode([String: String].self, from: data)["detail"] {
+            throw MoneyError.needsDetail(detail)
+        }
+        try check(response)
+        return try decoder.decode(Spend.self, from: data)
+    }
+
+    enum MoneyError: LocalizedError {
+        case needsDetail(String)
+        var errorDescription: String? {
+            switch self { case .needsDetail(let message): message }
+        }
+    }
+
+    static func deleteSpending(_ id: String) async throws {
+        struct Deleted: Decodable { let deleted: String }
+        let _: Deleted = try await memoryRequest("spend/\(id)", method: "DELETE")
+    }
+
+    /// nil clears the budget.
+    static func setBudget(_ weekly: Double?) async throws {
+        guard let base = baseURL else { throw URLError(.badURL) }
+        var request = URLRequest(url: base.appendingPathComponent("budget"))
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30
+        authorize(&request)
+        request.httpBody = try JSONEncoder().encode(["weekly": weekly])
+        let (_, response) = try await URLSession.shared.data(for: request)
+        try check(response)
+    }
+
+    private static func get<T: Decodable>(_ path: String, query: [String: String]) async throws -> T {
+        guard let base = baseURL,
+              var components = URLComponents(url: base.appendingPathComponent(path), resolvingAgainstBaseURL: false)
+        else { throw URLError(.badURL) }
+        components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
+        guard let url = components.url else { throw URLError(.badURL) }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 30
+        authorize(&request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try check(response)
+        return try decoder.decode(T.self, from: data)
     }
 
     // MARK: Campus Capture

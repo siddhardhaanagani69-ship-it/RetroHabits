@@ -133,6 +133,13 @@ struct RippleView: View {
             ForEach(r.change.stated, id: \.self) { fact in
                 Label(fact, systemImage: "quote.bubble.fill").font(.bodyMedium(12)).foregroundStyle(Palette.ink)
             }
+            if let money = r.money {
+                HStack(alignment: .top, spacing: 6) {
+                    tag("PLANNED · NOT SPENT", Palette.purple)
+                    Text(Self.costLine(money)).font(.bodyMedium(12)).foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             ForEach(r.change.assumptions, id: \.self) { assumption in
                 HStack(alignment: .top, spacing: 6) {
                     tag("Assumed", Palette.orange)
@@ -308,6 +315,15 @@ struct RippleView: View {
             guard let start = c.start else { return c.title }
             return "\(c.title) → \(Self.range(start, c.end))"
         }
+    }
+
+    /// "Costs $45.00 · would leave $105.00 of that week's $150.00".
+    static func costLine(_ m: AssistantService.PlannedCost) -> String {
+        let cost = "Costs \(BudgetCard.money(m.cost))"
+        guard let budget = m.budget, let after = m.after else { return cost + " · set a weekly budget in Money to see if it fits" }
+        return after >= 0
+            ? cost + " · would leave \(BudgetCard.money(after)) of that week's \(BudgetCard.money(budget))"
+            : cost + " · \(BudgetCard.money(-after)) over that week's \(BudgetCard.money(budget)) budget"
     }
 
     private static let dayTime: DateFormatter = {
