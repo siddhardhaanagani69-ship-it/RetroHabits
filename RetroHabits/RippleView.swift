@@ -20,6 +20,7 @@ struct RippleView: View {
     @State private var applied = false
     @State private var shown = 0          // how many graph nodes have rippled in
     @State private var addingToCalendar = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var plannedHabits: Int { habits.habits.filter(\.hasReminder).count }
 
@@ -225,10 +226,16 @@ struct RippleView: View {
             choice = Dictionary(uniqueKeysWithValues: r.conflicts.compactMap { c in
                 c.options.first.map { (c.id, $0) }
             })
-            withAnimation { result = r }
-            for step in 1...(r.conflicts.count + 2) {   // ripple the nodes in one by one
-                try? await Task.sleep(nanoseconds: 180_000_000)
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { shown = step }
+            result = r
+            let steps = r.conflicts.count + 2
+            if reduceMotion {
+                shown = steps
+            } else {
+                // A quick top-to-bottom fade (about 0.2 s total) so the graph reads as a ripple.
+                for step in 1...steps {
+                    withAnimation(.easeOut(duration: 0.18)) { shown = step }
+                    try? await Task.sleep(for: .milliseconds(40))
+                }
             }
         } catch {
             self.error = error.localizedDescription
@@ -256,7 +263,6 @@ struct RippleView: View {
     private func node<Content: View>(_ index: Int, @ViewBuilder _ content: () -> Content) -> some View {
         content()
             .opacity(shown >= index ? 1 : 0)
-            .offset(y: shown >= index ? 0 : 14)
     }
 
     private func connector(_ index: Int) -> some View {

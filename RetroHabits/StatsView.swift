@@ -205,21 +205,23 @@ struct CompletionGrid: View {
     private let spacing: CGFloat = 3
 
     var body: some View {
+        // Work out the 70 colors once; ViewThatFits may build every size below.
+        let colors = (0..<weeks).map { week in (0..<7).map { day in color(week: week, day: day) } }
         ViewThatFits(in: .horizontal) {
-            grid(cell: 18)
-            grid(cell: 15)
-            grid(cell: 12)
-            grid(cell: 10)
+            grid(cell: 18, colors: colors)
+            grid(cell: 15, colors: colors)
+            grid(cell: 12, colors: colors)
+            grid(cell: 10, colors: colors)
         }
     }
 
-    private func grid(cell: CGFloat) -> some View {
+    private func grid(cell: CGFloat, colors: [[Color]]) -> some View {
         HStack(alignment: .top, spacing: spacing) {
             ForEach(0..<weeks, id: \.self) { week in
                 VStack(spacing: spacing) {
                     ForEach(0..<7, id: \.self) { day in
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(color(week: week, day: day))
+                            .fill(colors[week][day])
                             .frame(width: cell, height: cell)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 2)

@@ -52,7 +52,8 @@ struct AgendaView: View {
                     .accessibilityLabel(agenda.isLoading ? "Refreshing" : "Refresh")
                 }
 
-                Picker("Mode", selection: $mode.animation(.easeInOut(duration: 0.2))) {
+                // Instant swap, like a system segmented control; animating it cross-faded whole screens.
+                Picker("Mode", selection: $mode) {
                     ForEach(Mode.allCases, id: \.self) { mode in
                         Text(mode.rawValue).tag(mode)
                     }
@@ -65,7 +66,7 @@ struct AgendaView: View {
                 case .capture:
                     CaptureView { change in
                         rippleDraft = change
-                        withAnimation(.easeInOut(duration: 0.2)) { mode = .ripple }
+                        mode = .ripple
                     }
                 case .alerts: AlertsSection()
                 }
@@ -174,7 +175,7 @@ struct AgendaView: View {
                             // Today's habits are checked off right here; other days just show the plan.
                             if Calendar.current.isDateInToday(selectedDay) {
                                 Button { toggle(habit) } label: {
-                                    CheckCircle(checked: done, pressing: false)
+                                    CheckCircle(checked: done)
                                         .frame(width: 44, height: 44)
                                         .contentShape(.rect)
                                 }
@@ -198,7 +199,7 @@ struct AgendaView: View {
     }
 
     private func toggle(_ habit: Habit) {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { habits.toggleToday(habit) }
+        habits.toggleToday(habit)   // the checkbox animates itself
     }
 
     /// A habit's time that day: a Ripple move wins over the usual reminder time.
@@ -482,7 +483,7 @@ struct DayStrip: View {
                     let isSelected = Calendar.current.isDate(day, inSameDayAs: selected)
                     let isToday = Calendar.current.isDateInToday(day)
                     Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { selected = day }
+                        selected = day   // switch days instantly, like Calendar
                     } label: {
                         VStack(spacing: 4) {
                             Text(Self.weekday.string(from: day))

@@ -49,9 +49,7 @@ struct AddHabitView: View {
                             ) {
                                 ForEach(icons, id: \.self) { candidate in
                                     Button {
-                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
-                                            icon = candidate
-                                        }
+                                        icon = candidate
                                     } label: {
                                         Text(candidate)
                                             .font(.system(size: 22))
@@ -64,7 +62,6 @@ struct AddHabitView: View {
                                                 RoundedRectangle(cornerRadius: 6)
                                                     .stroke(icon == candidate ? Palette.blue : Palette.hairline, lineWidth: icon == candidate ? 2 : 1)
                                             )
-                                            .scaleEffect(icon == candidate ? 1.08 : 1)
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -81,12 +78,10 @@ struct AddHabitView: View {
                                 ForEach(1...7, id: \.self) { day in
                                     let isOn = weekdays.contains(day)
                                     Button {
-                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.65)) {
-                                            if isOn {
-                                                if weekdays.count > 1 { weekdays.remove(day) }
-                                            } else {
-                                                weekdays.insert(day)
-                                            }
+                                        if isOn {
+                                            if weekdays.count > 1 { weekdays.remove(day) }
+                                        } else {
+                                            weekdays.insert(day)
                                         }
                                     } label: {
                                         Text(dayLetters[day - 1])

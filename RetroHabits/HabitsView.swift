@@ -9,6 +9,7 @@ struct HabitsView: View {
     @State private var addingRoutine = false
     @State private var editingRoutine: Routine?
     @State private var milestoneBanner: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -104,7 +105,7 @@ struct HabitsView: View {
                         .padding(.bottom, 24)
                         .multilineTextAlignment(.center)
                 }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
             }
         }
         .sheet(isPresented: $showingAdd) { AddHabitView(habit: nil) }
@@ -138,7 +139,7 @@ struct HabitsView: View {
         return Card(fill: isDone ? Palette.blue : Palette.panel) {
             HStack(spacing: 8) {
                 Button { complete(habit, wasDone: isDone) } label: {
-                    CheckCircle(checked: isDone, pressing: false)
+                    CheckCircle(checked: isDone)
                         .frame(width: 44, height: 44)
                         .contentShape(.rect)
                 }
@@ -189,12 +190,10 @@ struct HabitsView: View {
     }
 
     private func complete(_ habit: Habit, wasDone: Bool) {
-        let generator = UIImpactFeedbackGenerator(style: .heavy)
-        generator.impactOccurred()
-
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
-            store.toggleToday(habit)
-        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        // No list-wide animation: only the checkbox animates (CheckCircle), so the
+        // rest of the screen doesn't bounce on every tap.
+        store.toggleToday(habit)
 
         guard !wasDone else { return }
 
@@ -206,7 +205,7 @@ struct HabitsView: View {
                 milestoneBanner = "\(milestone.days)-day streak · +\(milestone.bonus) XP"
             }
             Task {
-                try? await Task.sleep(nanoseconds: 2_200_000_000)
+                try? await Task.sleep(for: .seconds(2.2))
                 withAnimation(.easeIn(duration: 0.3)) { milestoneBanner = nil }
             }
         }
@@ -218,7 +217,6 @@ struct HabitsView: View {
 
 struct CheckCircle: View {
     var checked: Bool
-    var pressing: Bool
 
     var body: some View {
         ZStack {
@@ -229,12 +227,10 @@ struct CheckCircle: View {
                 Image(systemName: "checkmark")
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white)
-                    .transition(.scale.combined(with: .opacity))
-            } else if pressing {
-                Circle().fill(Palette.blue.opacity(0.25)).padding(4).transition(.scale)
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
         }
         .frame(width: 28, height: 28)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: checked)
+        .animation(.snappy(duration: 0.2), value: checked)   // quick, no overshoot
     }
 }

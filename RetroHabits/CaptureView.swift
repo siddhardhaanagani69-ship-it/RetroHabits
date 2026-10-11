@@ -150,7 +150,7 @@ struct CaptureView: View {
         guard let jpeg = picked.downscaled(maxSide: 1600).jpegData(compressionQuality: 0.7) else { return }
         do {
             let r = try await AssistantService.capture(imageJPEG: jpeg, agenda: agenda.items, habits: habits.habits)
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) { result = r }
+            withAnimation(.easeOut(duration: 0.2)) { result = r }
         } catch {
             self.error = error.localizedDescription
         }
