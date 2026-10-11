@@ -5,7 +5,7 @@
 set -e
 cd "$(dirname "$0")/.."
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-PHONE=$(xcrun devicectl list devices 2>/dev/null | awk '(/connected/ || /available/) && /physical/ {for (i=1;i<=NF;i++) if ($i ~ /^[0-9A-F]{8}-[0-9A-F]{16}$/) print $i; exit}')
+PHONE=$(xcrun devicectl list devices 2>/dev/null | awk '(/connected/ || /available/) && /physical/ && /iPhone/ {for (i=1;i<=NF;i++) if ($i ~ /^[0-9A-F]{8}-[0-9A-F]{16}$/) print $i; exit}')
 [[ -n "$PHONE" ]] || { echo "No iPhone connected"; exit 1; }
 TOKEN=$(backend/.venv/bin/python -c "from dotenv import dotenv_values; print(dotenv_values('backend/.env').get('API_TOKEN') or '')")
 # Outside the (iCloud-synced) Desktop: synced folders add file attributes codesign rejects.
