@@ -26,7 +26,7 @@ struct WidgetSnapshot: Codable {
     var doneToday: Int = 0
     var totalToday: Int = 0
     var xp: Int = 0
-    var rankTitle: String = "ROOKIE"
+    var rankTitle: String = "Rookie"
     var updated: Date = Date()
 }
 

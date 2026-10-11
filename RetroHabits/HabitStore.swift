@@ -108,7 +108,7 @@ final class HabitStore: ObservableObject {
 
         func add(_ id: String, _ components: DateComponents, repeats: Bool) {
             let content = UNMutableNotificationContent()
-            content.title = "▶ \(habit.name.uppercased())"
+            content.title = habit.name
             content.body = "Time to keep the streak alive! Currently: \(habit.streak) days."
             content.sound = .default
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: repeats)

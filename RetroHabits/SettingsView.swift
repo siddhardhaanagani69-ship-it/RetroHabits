@@ -16,7 +16,7 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                ComicHeader(title: "HEADQUARTERS", subtitle: "Wire up your data sources.")
+                ScreenHeader(title: "Setup", subtitle: "Connect your accounts and alerts.")
                 assistantPanel
                 canvasTokenPanel
                 canvasFeedPanel
@@ -25,9 +25,9 @@ struct SettingsView: View {
                 digestPanel
                 permissionsPanel
 
-                Text("RETRO HABITS · ISSUE #1")
-                    .font(.bangers(16))
-                    .foregroundStyle(Comic.ink.opacity(0.45))
+                Text("RetroHabits")
+                    .font(.heading(16))
+                    .foregroundStyle(Palette.ink.opacity(0.45))
                     .frame(maxWidth: .infinity)
                     .padding(.top, 8)
             }
@@ -48,36 +48,36 @@ struct SettingsView: View {
     // MARK: Assistant server
 
     private var assistantPanel: some View {
-        ComicPanel(tilt: 0.3) {
+        Card {
             VStack(alignment: .leading, spacing: 10) {
-                Text("ASSISTANT SERVER")
-                    .font(.bangers(20))
-                    .foregroundStyle(Comic.orange)
+                Text("Assistant Server")
+                    .font(.heading(20))
+                    .foregroundStyle(Palette.orange)
                 TextField(AssistantService.defaultURL, text: $backendURL)
-                    .font(.comicLight(13))
-                    .foregroundStyle(Comic.ink)
+                    .font(.bodyRegular(13))
+                    .foregroundStyle(Palette.ink)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .keyboardType(.URL)
                     .padding(10)
-                    .background(Comic.paper)
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2))
+                    .background(Palette.paper)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.hairline, lineWidth: 1))
                 SecureField("Server token (API_TOKEN)", text: tokenBinding)
-                    .font(.comicLight(13))
-                    .foregroundStyle(Comic.ink)
+                    .font(.bodyRegular(13))
+                    .foregroundStyle(Palette.ink)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .padding(10)
-                    .background(Comic.paper)
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2))
+                    .background(Palette.paper)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.hairline, lineWidth: 1))
                 Button { showingMemories = true } label: {
-                    Label("WHAT I REMEMBER ABOUT YOU", systemImage: "brain").frame(maxWidth: .infinity)
+                    Label("What I Remember About You", systemImage: "brain").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(ComicButtonStyle())
+                .buttonStyle(FilledButtonStyle())
                 .sheet(isPresented: $showingMemories) { AllMemoriesSheet() }
                 Text("Leave blank to use the RetroHabits server. Paste the API_TOKEN from backend/.env as the token.")
-                    .font(.comicLight(12))
-                    .foregroundStyle(Comic.ink.opacity(0.65))
+                    .font(.bodyRegular(12))
+                    .foregroundStyle(Palette.ink.opacity(0.65))
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -86,63 +86,63 @@ struct SettingsView: View {
     // MARK: Canvas token
 
     private var canvasTokenPanel: some View {
-        ComicPanel {
+        Card {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("CANVAS TOKEN")
-                        .font(.bangers(20))
-                        .foregroundStyle(Comic.red)
+                    Text("Canvas Token")
+                        .font(.heading(20))
+                        .foregroundStyle(Palette.red)
                     Spacer()
                     if agenda.usesCanvasAPI {
-                        Text("CONNECTED")
-                            .font(.bangers(12))
+                        Text("Connected")
+                            .font(.heading(12))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 3)
-                            .background(Capsule().fill(Comic.blue))
+                            .background(Capsule().fill(Palette.blue))
                     }
                 }
 
                 TextField("canvas.uh.edu", text: canvasHostBinding)
-                    .font(.comicLight(13))
-                    .foregroundStyle(Comic.ink)
+                    .font(.bodyRegular(13))
+                    .foregroundStyle(Palette.ink)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .keyboardType(.URL)
                     .padding(10)
-                    .background(Comic.paper)
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2))
+                    .background(Palette.paper)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.hairline, lineWidth: 1))
 
                 SecureField("Access token", text: canvasTokenBinding)
-                    .font(.comicLight(13))
-                    .foregroundStyle(Comic.ink)
+                    .font(.bodyRegular(13))
+                    .foregroundStyle(Palette.ink)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .padding(10)
-                    .background(Comic.paper)
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2))
+                    .background(Palette.paper)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.hairline, lineWidth: 1))
 
                 Text("In Canvas: Account → Settings → Approved Integrations → \"+ New Access Token\". Unlocks course names, points, and whether you've already turned things in.")
-                    .font(.comicLight(12))
-                    .foregroundStyle(Comic.ink.opacity(0.65))
+                    .font(.bodyRegular(12))
+                    .foregroundStyle(Palette.ink.opacity(0.65))
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 10) {
                     Button {
                         Task { await agenda.refresh() }
                     } label: {
-                        Text("TEST & SYNC").frame(maxWidth: .infinity)
+                        Text("Test & Sync").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(ComicButtonStyle(fill: Comic.red, textColor: .white))
+                    .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
 
                     if agenda.usesCanvasAPI {
                         Button {
                             agenda.canvasToken = ""
                             Task { await agenda.refresh() }
                         } label: {
-                            Text("CLEAR").frame(maxWidth: .infinity)
+                            Text("Clear").frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(ComicButtonStyle(fill: .white))
+                        .buttonStyle(FilledButtonStyle())
                     }
                 }
             }
@@ -154,23 +154,23 @@ struct SettingsView: View {
     @ViewBuilder
     private var canvasFeedPanel: some View {
         if !agenda.usesCanvasAPI {
-            ComicPanel(tilt: -0.3) {
+            Card {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("OR: CALENDAR FEED")
-                        .font(.bangers(18))
-                        .foregroundStyle(Comic.ink.opacity(0.7))
+                    Text("Or: Calendar Feed")
+                        .font(.heading(18))
+                        .foregroundStyle(Palette.ink.opacity(0.7))
                     TextField("https://canvas…/feeds/calendars/….ics", text: canvasFeedBinding)
-                        .font(.comicLight(13))
-                        .foregroundStyle(Comic.ink)
+                        .font(.bodyRegular(13))
+                        .foregroundStyle(Palette.ink)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)
                         .padding(10)
-                        .background(Comic.paper)
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2))
+                        .background(Palette.paper)
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.hairline, lineWidth: 1))
                     Text("Simpler but thinner — due dates only. Canvas → Calendar → \"Calendar Feed\" (bottom right).")
-                        .font(.comicLight(12))
-                        .foregroundStyle(Comic.ink.opacity(0.65))
+                        .font(.bodyRegular(12))
+                        .foregroundStyle(Palette.ink.opacity(0.65))
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -180,17 +180,17 @@ struct SettingsView: View {
     // MARK: iPhone calendar
 
     private var calendarPanel: some View {
-        ComicPanel(tilt: 0.4) {
+        Card {
             VStack(alignment: .leading, spacing: 10) {
                 Toggle(isOn: appleCalendarBinding) {
-                    Text("IPHONE CALENDAR")
-                        .font(.bangers(20))
-                        .foregroundStyle(Comic.blue)
+                    Text("iPhone Calendar")
+                        .font(.heading(20))
+                        .foregroundStyle(Palette.blue)
                 }
-                .tint(Comic.red)
+                .tint(Palette.red)
                 Text("Pulls in every account synced to your iPhone calendar. Tip: add your school email under Settings → Apps → Calendar → Calendar Accounts and your Outlook events and Teams meetings appear here too.")
-                    .font(.comicLight(12))
-                    .foregroundStyle(Comic.ink.opacity(0.65))
+                    .font(.bodyRegular(12))
+                    .foregroundStyle(Palette.ink.opacity(0.65))
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -199,31 +199,31 @@ struct SettingsView: View {
     // MARK: Alerts
 
     private var alertsPanel: some View {
-        ComicPanel(tilt: -0.4) {
+        Card {
             VStack(alignment: .leading, spacing: 12) {
-                Text("ALERT WIRE")
-                    .font(.bangers(20))
-                    .foregroundStyle(Comic.orange)
+                Text("Alerts")
+                    .font(.heading(20))
+                    .foregroundStyle(Palette.orange)
 
                 Toggle(isOn: $prefs.deadlineAlertsEnabled) {
                     Text("Deadline reminders")
-                        .font(.comic(14))
-                        .foregroundStyle(Comic.ink)
+                        .font(.bodyMedium(14))
+                        .foregroundStyle(Palette.ink)
                 }
-                .tint(Comic.red)
+                .tint(Palette.red)
 
                 Toggle(isOn: $prefs.eventAlertsEnabled) {
                     Text("Event start reminders")
-                        .font(.comic(14))
-                        .foregroundStyle(Comic.ink)
+                        .font(.bodyMedium(14))
+                        .foregroundStyle(Palette.ink)
                 }
-                .tint(Comic.red)
+                .tint(Palette.red)
 
-                Divider().overlay(Comic.ink.opacity(0.3))
+                Divider().overlay(Palette.ink.opacity(0.3))
 
-                Text("HOW EARLY?")
-                    .font(.bangers(15))
-                    .foregroundStyle(Comic.ink.opacity(0.6))
+                Text("How early?")
+                    .font(.heading(15))
+                    .foregroundStyle(Palette.ink.opacity(0.6))
                 Picker("Lead time", selection: $prefs.profile) {
                     ForEach(LeadTimeProfile.allCases) { profile in
                         Text(profile.title).tag(profile)
@@ -231,8 +231,8 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 Text(prefs.profile.summary)
-                    .font(.comicLight(12))
-                    .foregroundStyle(Comic.ink.opacity(0.65))
+                    .font(.bodyRegular(12))
+                    .foregroundStyle(Palette.ink.opacity(0.65))
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -241,49 +241,49 @@ struct SettingsView: View {
     // MARK: Digests
 
     private var digestPanel: some View {
-        ComicPanel(tilt: 0.4) {
+        Card {
             VStack(alignment: .leading, spacing: 12) {
-                Text("DAILY DIGESTS")
-                    .font(.bangers(20))
-                    .foregroundStyle(Comic.blue)
+                Text("Daily Digests")
+                    .font(.heading(20))
+                    .foregroundStyle(Palette.blue)
 
                 Toggle(isOn: $prefs.dailyBriefingEnabled) {
                     Text("Morning briefing")
-                        .font(.comic(14))
-                        .foregroundStyle(Comic.ink)
+                        .font(.bodyMedium(14))
+                        .foregroundStyle(Palette.ink)
                 }
-                .tint(Comic.red)
+                .tint(Palette.red)
 
                 if prefs.dailyBriefingEnabled {
                     hourPicker(label: "Briefing at", selection: $prefs.briefingHour)
                 }
 
-                Divider().overlay(Comic.ink.opacity(0.3))
+                Divider().overlay(Palette.ink.opacity(0.3))
 
                 Toggle(isOn: $prefs.deadlineWatchEnabled) {
                     Text("Deadline watch")
-                        .font(.comic(14))
-                        .foregroundStyle(Comic.ink)
+                        .font(.bodyMedium(14))
+                        .foregroundStyle(Palette.ink)
                 }
-                .tint(Comic.red)
+                .tint(Palette.red)
 
                 if prefs.deadlineWatchEnabled {
                     hourPicker(label: "Watch at", selection: $prefs.watchHour)
                     HStack {
                         Text("Look ahead")
-                            .font(.comicLight(13))
-                            .foregroundStyle(Comic.ink.opacity(0.7))
+                            .font(.bodyRegular(13))
+                            .foregroundStyle(Palette.ink.opacity(0.7))
                         Spacer()
                         Picker("Days", selection: $prefs.watchWindowDays) {
                             ForEach([2, 3, 5, 7], id: \.self) { days in
                                 Text("\(days) days").tag(days)
                             }
                         }
-                        .tint(Comic.red)
+                        .tint(Palette.red)
                     }
                     Text("A daily nudge listing everything due in the next few days, so nothing sneaks up on you.")
-                        .font(.comicLight(12))
-                        .foregroundStyle(Comic.ink.opacity(0.65))
+                        .font(.bodyRegular(12))
+                        .foregroundStyle(Palette.ink.opacity(0.65))
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -293,11 +293,11 @@ struct SettingsView: View {
     // MARK: Permissions
 
     private var permissionsPanel: some View {
-        ComicPanel(tilt: -0.4) {
+        Card {
             VStack(alignment: .leading, spacing: 10) {
-                Text("PERMISSIONS")
-                    .font(.bangers(20))
-                    .foregroundStyle(Comic.red)
+                Text("Permissions")
+                    .font(.heading(20))
+                    .foregroundStyle(Palette.red)
                 Button {
                     Task {
                         await scheduler.requestPermission()
@@ -305,13 +305,13 @@ struct SettingsView: View {
                         await agenda.refresh()
                     }
                 } label: {
-                    Label("ENABLE NOTIFICATIONS", systemImage: "bell.fill")
+                    Label("Enable Notifications", systemImage: "bell.fill")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(ComicButtonStyle())
+                .buttonStyle(FilledButtonStyle())
                 Text("iOS doesn't let apps read other apps' notifications, so RetroHabits builds its own alerts from your Canvas and calendar data.")
-                    .font(.comicLight(12))
-                    .foregroundStyle(Comic.ink.opacity(0.65))
+                    .font(.bodyRegular(12))
+                    .foregroundStyle(Palette.ink.opacity(0.65))
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -322,15 +322,15 @@ struct SettingsView: View {
     private func hourPicker(label: String, selection: Binding<Int>) -> some View {
         HStack {
             Text(label)
-                .font(.comicLight(13))
-                .foregroundStyle(Comic.ink.opacity(0.7))
+                .font(.bodyRegular(13))
+                .foregroundStyle(Palette.ink.opacity(0.7))
             Spacer()
             Picker(label, selection: selection) {
                 ForEach(hours, id: \.self) { hour in
                     Text(hourLabel(hour)).tag(hour)
                 }
             }
-            .tint(Comic.red)
+            .tint(Palette.red)
         }
     }
 

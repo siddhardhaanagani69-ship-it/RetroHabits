@@ -15,13 +15,13 @@ struct ChatView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
-                        ComicHeader(title: "ASK HQ", subtitle: "Plans, feelings, skills — talk it out.")
+                        ScreenHeader(title: "Ask", subtitle: "Plans, feelings, skills — ask anything.")
 
                         if turns.isEmpty {
-                            ComicPanel(tilt: -0.6) {
+                            Card {
                                 Text("Try: \"I'm stressed about my database class — what should I focus on this week?\"")
-                                    .font(.comic(14))
-                                    .foregroundStyle(Comic.ink)
+                                    .font(.bodyMedium(14))
+                                    .foregroundStyle(Palette.ink)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
@@ -35,14 +35,14 @@ struct ChatView: View {
 
                         if isSending {
                             HStack(spacing: 8) {
-                                ProgressView().tint(Comic.ink)
-                                Text("Thinking…").font(.comic(13)).foregroundStyle(Comic.ink.opacity(0.6))
+                                ProgressView().tint(Palette.ink)
+                                Text("Thinking…").font(.bodyMedium(13)).foregroundStyle(Palette.ink.opacity(0.6))
                             }
                         }
                         if let error {
                             Text(error)
-                                .font(.comic(13))
-                                .foregroundStyle(Comic.red)
+                                .font(.bodyMedium(13))
+                                .foregroundStyle(Palette.red)
                         }
                         Color.clear.frame(height: 1).id("bottom")
                     }
@@ -68,15 +68,14 @@ struct ChatView: View {
             if mine { Spacer(minLength: 40) }
             // Gemini replies use light markdown (**bold**); render it instead of showing asterisks.
             Text(LocalizedStringKey(turn.text))
-                .font(.comic(15))
-                .foregroundStyle(mine ? .white : Comic.ink)
+                .font(.bodyMedium(15))
+                .foregroundStyle(mine ? .white : Palette.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(12)
                 .background(
                     ZStack {
-                        RoundedRectangle(cornerRadius: 12).fill(Comic.ink).offset(x: 3, y: 3)
-                        RoundedRectangle(cornerRadius: 12).fill(mine ? Comic.blue : Color.white)
-                        RoundedRectangle(cornerRadius: 12).stroke(Comic.ink, lineWidth: 2)
+                        RoundedRectangle(cornerRadius: 12).fill(mine ? Palette.blue : Palette.panel)
+                        RoundedRectangle(cornerRadius: 12).stroke(Palette.hairline, lineWidth: 1)
                     }
                 )
             if !mine { Spacer(minLength: 40) }
@@ -86,25 +85,25 @@ struct ChatView: View {
     private var inputBar: some View {
         HStack(spacing: 8) {
             TextField("Ask anything…", text: $draft, axis: .vertical)
-                .font(.comic(15))
-                .foregroundStyle(Comic.ink)
+                .font(.bodyMedium(15))
+                .foregroundStyle(Palette.ink)
                 .lineLimit(1...4)
                 .focused($inputFocused)
                 .padding(10)
-                .background(Color.white)
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Comic.ink, lineWidth: 2))
+                .background(Palette.panel)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.hairline, lineWidth: 1))
             Button {
                 Task { await send() }
             } label: {
                 Image(systemName: "paperplane.fill")
                     .font(.system(size: 16, weight: .black))
             }
-            .buttonStyle(ComicButtonStyle(fill: Comic.red, textColor: .white))
+            .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
             .disabled(isSending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(Comic.paper)
+        .background(Palette.paper)
     }
 
     private func send() async {

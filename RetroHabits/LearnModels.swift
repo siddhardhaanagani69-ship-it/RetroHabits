@@ -21,8 +21,8 @@ enum LearnTrack: String, Codable, CaseIterable, Identifiable {
 
     var color: Color {
         switch self {
-        case .llm: return Comic.red
-        case .rag: return Comic.blue
+        case .llm: return Palette.red
+        case .rag: return Palette.blue
         case .cloud: return Color(red: 0.0, green: 0.62, blue: 0.55)
         case .nlp: return Color(red: 0.55, green: 0.2, blue: 0.75)
         }

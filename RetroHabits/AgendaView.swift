@@ -3,15 +3,16 @@ import SwiftUI
 struct AgendaView: View {
     @EnvironmentObject var agenda: AgendaStore
     @State private var selectedItem: AgendaItem?
-    @State private var mode: Mode = .schedule
+    /// `-agendaMode RIPPLE` at launch opens that segment; Schedule otherwise.
+    @State private var mode: Mode = Mode(rawValue: UserDefaults.standard.string(forKey: "agendaMode") ?? "") ?? .schedule
     /// Ripple's input, kept here so Campus Capture can hand it an event.
     @State private var rippleDraft = ""
 
     enum Mode: String, CaseIterable {
-        case schedule = "SCHEDULE"
-        case ripple = "RIPPLE"
-        case capture = "CAPTURE"
-        case alerts = "ALERTS"
+        case schedule = "Schedule"
+        case ripple = "Ripple"
+        case capture = "Capture"
+        case alerts = "Alerts"
     }
 
     static let dayFormatter: DateFormatter = {
@@ -31,19 +32,19 @@ struct AgendaView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
-                    ComicHeader(title: "THE DAILY", subtitle: "Your missions, assembled.")
+                    ScreenHeader(title: "Agenda", subtitle: "Classes, deadlines and events.")
                     BriefingButton()
                     Button {
                         Task { await agenda.refresh() }
                     } label: {
                         if agenda.isLoading {
-                            ProgressView().tint(Comic.ink)
+                            ProgressView().tint(Palette.ink)
                         } else {
                             Image(systemName: "arrow.clockwise")
                                 .font(.system(size: 16, weight: .black))
                         }
                     }
-                    .buttonStyle(ComicButtonStyle())
+                    .buttonStyle(FilledButtonStyle())
                     .disabled(agenda.isLoading)
                 }
 
@@ -87,82 +88,70 @@ struct AgendaView: View {
         InboxPanel()
 
         ForEach(agenda.errors, id: \.self) { error in
-            ComicPanel(fill: Comic.yellow) {
+            Card(fill: Palette.yellow) {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .font(.comic(13))
-                    .foregroundStyle(Comic.ink)
+                    .font(.bodyMedium(13))
+                    .foregroundStyle(Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
 
         if agenda.usesCanvasAPI && (agenda.submittedCount > 0 || agenda.missingCount > 0) {
-            ComicPanel(fill: Comic.yellow) {
+            Card(fill: Palette.yellow) {
                 HStack(spacing: 14) {
-                    statBlock("\(agenda.items.count)", "TOTAL", Comic.ink)
-                    Rectangle().fill(Comic.ink).frame(width: 2, height: 34)
-                    statBlock("\(agenda.submittedCount)", "TURNED IN", Comic.blue)
-                    Rectangle().fill(Comic.ink).frame(width: 2, height: 34)
-                    statBlock("\(agenda.missingCount)", "MISSING", Comic.red)
+                    statBlock("\(agenda.items.count)", "TOTAL", Palette.ink)
+                    Divider().frame(height: 34)
+                    statBlock("\(agenda.submittedCount)", "TURNED IN", Palette.blue)
+                    Divider().frame(height: 34)
+                    statBlock("\(agenda.missingCount)", "MISSING", Palette.red)
                 }
                 .frame(maxWidth: .infinity)
             }
 
             Toggle(isOn: $agenda.hideSubmitted.animation()) {
-                Text("HIDE WHAT'S TURNED IN")
-                    .font(.bangers(15))
-                    .foregroundStyle(Comic.ink.opacity(0.7))
+                Text("Hide what's turned in")
+                    .font(.heading(15))
+                    .foregroundStyle(Palette.ink.opacity(0.7))
             }
-            .tint(Comic.red)
+            .tint(Palette.red)
         }
 
         if noSourcesConfigured {
-            ComicPanel(tilt: -0.8) {
+            Card {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("NOTHING CONNECTED!")
-                        .font(.bangers(22))
-                        .foregroundStyle(Comic.red)
-                    Text("Head to SETUP and plug in your Canvas token or iPhone calendar to see your missions here.")
-                        .font(.comic(14))
-                        .foregroundStyle(Comic.ink)
+                    Text("Nothing connected")
+                        .font(.heading(22))
+                        .foregroundStyle(Palette.red)
+                    Text("Add your Canvas feed or turn on iPhone Calendar in Setup to see your schedule here.")
+                        .font(.bodyMedium(14))
+                        .foregroundStyle(Palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
         } else if agenda.visibleItems.isEmpty && !agenda.isLoading {
-            ComicPanel(tilt: 0.8) {
+            Card {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("ALL CLEAR, HERO!")
-                        .font(.bangers(22))
-                        .foregroundStyle(Comic.blue)
+                    Text("All clear")
+                        .font(.heading(22))
+                        .foregroundStyle(Palette.blue)
                     Text(agenda.hideSubmitted && agenda.submittedCount > 0
                          ? "Everything's turned in. Enjoy it."
                          : "No upcoming events. Pull down to refresh.")
-                        .font(.comic(14))
-                        .foregroundStyle(Comic.ink)
+                        .font(.bodyMedium(14))
+                        .foregroundStyle(Palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
 
         ForEach(agenda.itemsByDay, id: \.day) { group in
-            Text(dayLabel(group.day))
-                .font(.bangers(22))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 5)
-                .background(
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 6).fill(Comic.ink).offset(x: 3, y: 3)
-                        RoundedRectangle(cornerRadius: 6).fill(Comic.blue)
-                        RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2)
-                    }
-                )
-                .padding(.top, 6)
+            SectionHeader(text: dayLabel(group.day))
 
             ForEach(Array(group.items.enumerated()), id: \.element.id) { index, item in
                 Button {
                     selectedItem = item
                 } label: {
-                    eventPanel(item, tilt: index.isMultiple(of: 2) ? 0.6 : -0.6)
+                    eventPanel(item)
                 }
                 .buttonStyle(.plain)
             }
@@ -172,76 +161,76 @@ struct AgendaView: View {
     private func statBlock(_ value: String, _ label: String, _ color: Color) -> some View {
         VStack(spacing: 2) {
             Text(value)
-                .font(.bangers(26))
+                .font(.heading(26))
                 .foregroundStyle(color)
             Text(label)
-                .font(.bangers(11))
-                .foregroundStyle(Comic.ink.opacity(0.7))
+                .font(.heading(11))
+                .foregroundStyle(Palette.ink.opacity(0.7))
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
     }
 
-    private func eventPanel(_ item: AgendaItem, tilt: Double) -> some View {
-        ComicPanel(tilt: tilt, fill: item.isSubmitted ? Color.white.opacity(0.65) : Comic.panel) {
+    private func eventPanel(_ item: AgendaItem) -> some View {
+        Card(fill: item.isSubmitted ? Palette.panel.opacity(0.65) : Palette.panel) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(spacing: 3) {
                     Text(item.isAllDay ? "ALL\nDAY" : Self.timeFormatter.string(from: item.start))
-                        .font(.bangers(16))
-                        .foregroundStyle(item.isMissing ? Comic.red : Comic.blue)
+                        .font(.heading(16))
+                        .foregroundStyle(item.isMissing ? Palette.red : Palette.blue)
                         .multilineTextAlignment(.center)
                     Image(systemName: item.kind.symbol)
                         .font(.system(size: 11, weight: .black))
-                        .foregroundStyle(Comic.ink.opacity(0.45))
+                        .foregroundStyle(Palette.ink.opacity(0.45))
                 }
                 .frame(minWidth: 52)
 
                 VStack(alignment: .leading, spacing: 4) {
                     if let course = item.courseName {
-                        Text(course.uppercased())
-                            .font(.bangers(13))
+                        Text(course)
+                            .font(.heading(13))
                             .foregroundStyle(item.source.tint)
                             .lineLimit(1)
                     }
                     Text(item.summary ?? item.title)
-                        .font(.comic(15))
-                        .foregroundStyle(item.isSubmitted ? Comic.ink.opacity(0.55) : Comic.ink)
-                        .strikethrough(item.isSubmitted, color: Comic.blue)
+                        .font(.bodyMedium(15))
+                        .foregroundStyle(item.isSubmitted ? Palette.ink.opacity(0.55) : Palette.ink)
+                        .strikethrough(item.isSubmitted, color: Palette.blue)
                         .multilineTextAlignment(.leading)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
 
                     if let action = item.action, !item.isSubmitted {
                         Label(action, systemImage: "arrow.right.circle.fill")
-                            .font(.comic(12))
-                            .foregroundStyle(Comic.red)
+                            .font(.bodyMedium(12))
+                            .foregroundStyle(Palette.red)
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
                     HStack(spacing: 6) {
                         if item.urgency == 3 && !item.isSubmitted {
-                            statusTag("URGENT", Comic.red)
+                            statusTag("Urgent", Palette.red)
                         }
                         if item.isSubmitted {
-                            statusTag("TURNED IN", Comic.blue)
+                            statusTag("Turned in", Palette.blue)
                         } else if item.isMissing {
-                            statusTag("MISSING", Comic.red)
+                            statusTag("Missing", Palette.red)
                         }
                         if item.isGraded {
-                            statusTag("GRADED", Comic.ink.opacity(0.7))
+                            statusTag("Graded", Palette.ink.opacity(0.7))
                         }
                         if let points = item.pointsText {
                             Text(points)
-                                .font(.comicLight(11))
-                                .foregroundStyle(Comic.ink.opacity(0.6))
+                                .font(.bodyRegular(11))
+                                .foregroundStyle(Palette.ink.opacity(0.6))
                         }
                     }
 
                     if let location = item.location {
                         Label(location, systemImage: "mappin.and.ellipse")
-                            .font(.comicLight(12))
-                            .foregroundStyle(Comic.ink.opacity(0.65))
+                            .font(.bodyRegular(12))
+                            .foregroundStyle(Palette.ink.opacity(0.65))
                             .lineLimit(1)
                     }
                 }
@@ -253,7 +242,7 @@ struct AgendaView: View {
 
     private func statusTag(_ text: String, _ color: Color) -> some View {
         Text(text)
-            .font(.bangers(11))
+            .font(.heading(11))
             .foregroundStyle(.white)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
@@ -267,8 +256,8 @@ struct AgendaView: View {
     }
 
     private func dayLabel(_ day: Date) -> String {
-        if Calendar.current.isDateInToday(day) { return "TODAY" }
-        if Calendar.current.isDateInTomorrow(day) { return "TOMORROW" }
+        if Calendar.current.isDateInToday(day) { return "Today" }
+        if Calendar.current.isDateInTomorrow(day) { return "Tomorrow" }
         return Self.dayFormatter.string(from: day).uppercased()
     }
 }
@@ -282,19 +271,19 @@ struct EventDetailView: View {
 
     var body: some View {
         ZStack {
-            Comic.paper.ignoresSafeArea()
+            Palette.paper.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 6) {
                         if let course = item.courseName {
-                            Text(course.uppercased())
-                                .font(.bangers(16))
+                            Text(course)
+                                .font(.heading(16))
                                 .foregroundStyle(item.source.tint)
                         }
                         HStack(alignment: .top) {
                             Text(item.title)
-                                .font(.bangers(28))
-                                .foregroundStyle(Comic.ink)
+                                .font(.heading(28))
+                                .foregroundStyle(Palette.ink)
                                 .minimumScaleFactor(0.6)
                                 .fixedSize(horizontal: false, vertical: true)
                             Spacer()
@@ -303,26 +292,26 @@ struct EventDetailView: View {
                     }
                     .padding(.top, 20)
 
-                    ComicPanel {
+                    Card {
                         VStack(alignment: .leading, spacing: 10) {
                             if let summary = item.summary {
-                                detailRow(icon: "sparkles", label: "TL;DR", value: summary)
+                                detailRow(icon: "sparkles", label: "Summary", value: summary)
                             }
                             if let action = item.action {
-                                detailRow(icon: "arrow.right.circle.fill", label: "TO DO", value: action)
+                                detailRow(icon: "arrow.right.circle.fill", label: "To do", value: action)
                             }
-                            detailRow(icon: "clock.fill", label: "WHEN", value: whenText)
-                            detailRow(icon: item.kind.symbol, label: "TYPE", value: item.kind.label.capitalized)
+                            detailRow(icon: "clock.fill", label: "When", value: whenText)
+                            detailRow(icon: item.kind.symbol, label: "Type", value: item.kind.label.capitalized)
                             if let location = item.location {
-                                detailRow(icon: "mappin.and.ellipse", label: "WHERE", value: location)
+                                detailRow(icon: "mappin.and.ellipse", label: "Where", value: location)
                             }
                             if let points = item.pointsText {
-                                detailRow(icon: "star.fill", label: "WORTH", value: points)
+                                detailRow(icon: "star.fill", label: "Worth", value: points)
                             }
                             if item.kind.isSubmittable {
                                 detailRow(
                                     icon: item.isSubmitted ? "checkmark.circle.fill" : "exclamationmark.circle.fill",
-                                    label: "STATUS",
+                                    label: "Status",
                                     value: statusText
                                 )
                             }
@@ -330,14 +319,14 @@ struct EventDetailView: View {
                     }
 
                     if let notes = item.notes {
-                        ComicPanel(tilt: 0.4) {
+                        Card {
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("DETAILS")
-                                    .font(.bangers(18))
-                                    .foregroundStyle(Comic.blue)
+                                Text("Details")
+                                    .font(.heading(18))
+                                    .foregroundStyle(Palette.blue)
                                 Text(notes)
-                                    .font(.comicLight(14))
-                                    .foregroundStyle(Comic.ink)
+                                    .font(.bodyRegular(14))
+                                    .foregroundStyle(Palette.ink)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
@@ -348,28 +337,28 @@ struct EventDetailView: View {
                             Button {
                                 openURL(url)
                             } label: {
-                                Label(item.source == .canvas ? "OPEN IN CANVAS" : "OPEN LINK",
+                                Label(item.source == .canvas ? "Open in Canvas" : "Open Link",
                                       systemImage: "arrow.up.right.square.fill")
                                     .frame(maxWidth: .infinity)
                             }
-                            .buttonStyle(ComicButtonStyle(fill: Comic.red, textColor: .white))
+                            .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
                         }
                         if item.source == .apple,
                            let calendarURL = URL(string: "calshow:\(item.start.timeIntervalSinceReferenceDate)") {
                             Button {
                                 openURL(calendarURL)
                             } label: {
-                                Label("OPEN IN CALENDAR APP", systemImage: "calendar")
+                                Label("Open in Calendar", systemImage: "calendar")
                                     .frame(maxWidth: .infinity)
                             }
-                            .buttonStyle(ComicButtonStyle(fill: Comic.blue, textColor: .white))
+                            .buttonStyle(FilledButtonStyle(fill: Palette.blue, textColor: .white))
                         }
                         Button {
                             dismiss()
                         } label: {
-                            Text("CLOSE").frame(maxWidth: .infinity)
+                            Text("Close").frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(ComicButtonStyle())
+                        .buttonStyle(FilledButtonStyle())
                     }
                     .padding(.bottom, 24)
                 }
@@ -401,15 +390,15 @@ struct EventDetailView: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .black))
-                .foregroundStyle(Comic.red)
+                .foregroundStyle(Palette.red)
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.bangers(14))
-                    .foregroundStyle(Comic.ink.opacity(0.6))
+                    .font(.heading(14))
+                    .foregroundStyle(Palette.ink.opacity(0.6))
                 Text(value)
-                    .font(.comic(14))
-                    .foregroundStyle(Comic.ink)
+                    .font(.bodyMedium(14))
+                    .foregroundStyle(Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

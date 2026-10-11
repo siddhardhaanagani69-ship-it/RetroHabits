@@ -10,10 +10,10 @@ struct ScheduledAlert: Identifiable, Equatable {
 
         var label: String {
             switch self {
-            case .deadline: return "DEADLINE"
-            case .event: return "EVENT"
-            case .briefing: return "BRIEFING"
-            case .watch: return "DEADLINE WATCH"
+            case .deadline: return "Deadline"
+            case .event: return "Event"
+            case .briefing: return "Briefing"
+            case .watch: return "Deadline Watch"
             }
         }
 

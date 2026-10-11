@@ -9,25 +9,25 @@ struct RecallPanel: View {
     var body: some View {
         Group {
             if let recall, let day = recall.day {
-                ComicPanel(tilt: 0.5, fill: Comic.yellow) {
+                Card(fill: Palette.yellow) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("LAST TIME · \(day.uppercased())")
-                            .font(.bangers(18))
-                            .foregroundStyle(Comic.blue)
+                        Text("Last time · \(day)")
+                            .font(.heading(18))
+                            .foregroundStyle(Palette.blue)
                         ForEach(Array(recall.logs.enumerated()), id: \.offset) { _, session in
-                            Text(session.title.uppercased())
-                                .font(.bangers(20))
-                                .foregroundStyle(Comic.ink)
+                            Text(session.title)
+                                .font(.heading(20))
+                                .foregroundStyle(Palette.ink)
                             ForEach(Array((session.exercises ?? []).enumerated()), id: \.offset) { _, exercise in
                                 Text("• \(exercise.line)")
-                                    .font(.comic(14))
-                                    .foregroundStyle(Comic.ink)
+                                    .font(.bodyMedium(14))
+                                    .foregroundStyle(Palette.ink)
                             }
                         }
                         if let suggestion = recall.suggestion {
                             Label(suggestion, systemImage: "sparkles")
-                                .font(.comic(13))
-                                .foregroundStyle(Comic.red)
+                                .font(.bodyMedium(13))
+                                .foregroundStyle(Palette.red)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .padding(.top, 4)
                             WhyButton { inspecting = true }

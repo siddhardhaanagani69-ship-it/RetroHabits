@@ -7,59 +7,59 @@ struct StatsView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
-                ComicHeader(title: "HERO STATS", subtitle: "Your legend, week by week.")
+                ScreenHeader(title: "Stats", subtitle: "Your streaks, week by week.")
 
                 rankPanel
 
                 if store.habits.isEmpty {
-                    ComicPanel(tilt: -0.8) {
+                    Card {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("NO DATA YET!")
-                                .font(.bangers(24))
-                                .foregroundStyle(Comic.red)
+                            Text("No data yet")
+                                .font(.heading(24))
+                                .foregroundStyle(Palette.red)
                             Text("Add habits and start completing them — your track record shows up here.")
-                                .font(.comic(14))
-                                .foregroundStyle(Comic.ink)
+                                .font(.bodyMedium(14))
+                                .foregroundStyle(Palette.ink)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 } else {
-                    ComicPanel(fill: Comic.yellow) {
+                    Card(fill: Palette.yellow) {
                         HStack(spacing: 12) {
                             statBlock(value: "\(store.habits.count)", label: "HABITS")
-                            Rectangle().fill(Comic.ink).frame(width: 2, height: 40)
+                            Divider().frame(height: 40)
                             statBlock(value: "\(bestStreak)", label: "BEST RUN")
-                            Rectangle().fill(Comic.ink).frame(width: 2, height: 40)
+                            Divider().frame(height: 40)
                             statBlock(value: "\(Gamification.totalCompletions(store.habits))", label: "DONE")
-                            Rectangle().fill(Comic.ink).frame(width: 2, height: 40)
+                            Divider().frame(height: 40)
                             statBlock(value: "\(learn.studiedCount)", label: "STUDIED")
                         }
                         .frame(maxWidth: .infinity)
                     }
                 }
 
-                sectionLabel("ACHIEVEMENTS", color: Comic.orange)
+                SectionHeader(text: "Achievements")
                 achievementGrid
 
                 if !store.habits.isEmpty {
-                    sectionLabel("TRACK RECORD", color: Comic.blue)
+                    SectionHeader(text: "Track Record")
                     ForEach(Array(store.habits.enumerated()), id: \.element.id) { index, habit in
-                        ComicPanel(tilt: index.isMultiple(of: 2) ? 0.5 : -0.5) {
+                        Card {
                             VStack(alignment: .leading, spacing: 10) {
                                 HStack {
-                                    Text("\(habit.icon) \(habit.name.uppercased())")
-                                        .font(.comic(16))
-                                        .foregroundStyle(Comic.ink)
+                                    Text("\(habit.icon) \(habit.name)")
+                                        .font(.bodyMedium(16))
+                                        .foregroundStyle(Palette.ink)
                                         .lineLimit(2)
                                     Spacer(minLength: 8)
                                     Text("🔥\(habit.streak)")
-                                        .font(.bangers(20))
-                                        .foregroundStyle(Comic.red)
+                                        .font(.heading(20))
+                                        .foregroundStyle(Palette.red)
                                 }
                                 CompletionGrid(habit: habit)
-                                Text("LAST 10 WEEKS · \(completionCount(habit)) COMPLETED · BEST \(habit.longestStreak)")
-                                    .font(.bangers(13))
-                                    .foregroundStyle(Comic.ink.opacity(0.6))
+                                Text("Last 10 weeks · \(completionCount(habit)) completed · best \(habit.longestStreak)")
+                                    .font(.heading(13))
+                                    .foregroundStyle(Palette.ink.opacity(0.6))
                             }
                         }
                     }
@@ -79,14 +79,11 @@ struct StatsView: View {
         let next = HeroRank.next(after: rank)
         let progress = Gamification.rankProgress(xp: xp)
 
-        return ComicPanel {
+        return Card {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .center, spacing: 12) {
                     ZStack {
-                        StarburstShape(points: 12, innerRatio: 0.68)
-                            .fill(rank.color)
-                        StarburstShape(points: 12, innerRatio: 0.68)
-                            .stroke(Comic.ink, lineWidth: 2.5)
+                        Circle().fill(rank.color)
                         Image(systemName: "bolt.fill")
                             .font(.system(size: 20, weight: .black))
                             .foregroundStyle(.white)
@@ -95,25 +92,24 @@ struct StatsView: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(rank.title)
-                            .font(.bangers(28))
+                            .font(.heading(28))
                             .foregroundStyle(rank.color)
-                            .shadow(color: Comic.ink, radius: 0, x: 1.5, y: 1.5)
                         Text("\(xp) XP")
-                            .font(.comic(14))
-                            .foregroundStyle(Comic.ink.opacity(0.7))
+                            .font(.bodyMedium(14))
+                            .foregroundStyle(Palette.ink.opacity(0.7))
                     }
                     Spacer()
                 }
 
-                ComicProgressBar(progress: progress)
+                ProgressCapsule(progress: progress)
 
                 if let next {
-                    Text("\(next.threshold - xp) XP TO \(next.title)")
-                        .font(.bangers(14))
-                        .foregroundStyle(Comic.ink.opacity(0.6))
+                    Text("\(next.threshold - xp) XP to \(next.title)")
+                        .font(.heading(14))
+                        .foregroundStyle(Palette.ink.opacity(0.6))
                 } else {
-                    Text("MAXIMUM RANK ACHIEVED")
-                        .font(.bangers(14))
+                    Text("Maximum rank achieved")
+                        .font(.heading(14))
                         .foregroundStyle(rank.color)
                 }
             }
@@ -133,25 +129,25 @@ struct StatsView: View {
                 VStack(spacing: 6) {
                     ZStack {
                         Circle()
-                            .fill(isUnlocked ? achievement.color : Comic.ink.opacity(0.12))
+                            .fill(isUnlocked ? achievement.color : Palette.ink.opacity(0.12))
                         Circle()
-                            .stroke(Comic.ink, lineWidth: 2.5)
+                            .stroke(Palette.hairline, lineWidth: 1)
                         Image(systemName: isUnlocked ? achievement.symbol : "lock.fill")
                             .font(.system(size: 20, weight: .black))
-                            .foregroundStyle(isUnlocked ? .white : Comic.ink.opacity(0.35))
+                            .foregroundStyle(isUnlocked ? .white : Palette.ink.opacity(0.35))
                     }
                     .frame(width: 52, height: 52)
 
                     Text(achievement.title)
-                        .font(.bangers(13))
-                        .foregroundStyle(isUnlocked ? Comic.ink : Comic.ink.opacity(0.4))
+                        .font(.heading(13))
+                        .foregroundStyle(isUnlocked ? Palette.ink : Palette.ink.opacity(0.4))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                         .minimumScaleFactor(0.7)
 
                     Text(achievement.detail)
-                        .font(.comicLight(10))
-                        .foregroundStyle(Comic.ink.opacity(0.5))
+                        .font(.bodyRegular(10))
+                        .foregroundStyle(Palette.ink.opacity(0.5))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -160,40 +156,25 @@ struct StatsView: View {
                 .frame(maxWidth: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(isUnlocked ? Color.white : Color.white.opacity(0.5))
+                        .fill(isUnlocked ? Palette.panel : Palette.panel.opacity(0.5))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(Comic.ink, lineWidth: isUnlocked ? 2.5 : 1.5)
+                        .stroke(Palette.hairline, lineWidth: 1)
                 )
             }
         }
     }
 
-    private func sectionLabel(_ text: String, color: Color) -> some View {
-        Text(text)
-            .font(.bangers(22))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 5)
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 6).fill(Comic.ink).offset(x: 3, y: 3)
-                    RoundedRectangle(cornerRadius: 6).fill(color)
-                    RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2)
-                }
-            )
-            .padding(.top, 6)
-    }
 
     private func statBlock(value: String, label: String) -> some View {
         VStack(spacing: 2) {
             Text(value)
-                .font(.bangers(24))
-                .foregroundStyle(Comic.red)
+                .font(.heading(24))
+                .foregroundStyle(Palette.red)
             Text(label)
-                .font(.bangers(11))
-                .foregroundStyle(Comic.ink.opacity(0.7))
+                .font(.heading(11))
+                .foregroundStyle(Palette.ink.opacity(0.7))
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
         }
@@ -242,7 +223,7 @@ struct CompletionGrid: View {
                             .frame(width: cell, height: cell)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 2)
-                                    .stroke(Comic.ink.opacity(0.5), lineWidth: 1)
+                                    .stroke(Palette.hairline, lineWidth: 1)
                             )
                     }
                 }
@@ -257,12 +238,12 @@ struct CompletionGrid: View {
         let todayWeekday = calendar.component(.weekday, from: today) // 1...7
         let daysBack = (weeks - 1 - week) * 7 + (todayWeekday - 1 - day)
         guard daysBack >= 0, let date = calendar.date(byAdding: .day, value: -daysBack, to: today) else {
-            return Color.white.opacity(0.5)
+            return Palette.panel.opacity(0.5)
         }
-        if habit.isCompleted(on: date) { return Comic.red }
+        if habit.isCompleted(on: date) { return Palette.red }
         if date >= calendar.startOfDay(for: habit.createdAt), habit.isScheduled(on: date) {
-            return Comic.yellow.opacity(0.5)
+            return Palette.yellow.opacity(0.5)
         }
-        return Color.white
+        return Palette.panel
     }
 }

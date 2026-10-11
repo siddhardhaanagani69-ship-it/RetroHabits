@@ -1,96 +1,55 @@
 import SwiftUI
 
-enum ComicTab: String, CaseIterable {
-    case agenda = "AGENDA"
-    case habits = "HABITS"
-    case ask = "ASK"
-    case learn = "LEARN"
-    case stats = "STATS"
-    case settings = "SETUP"
+enum AppTab: String, CaseIterable {
+    case agenda = "Agenda"
+    case habits = "Habits"
+    case ask = "Ask"
+    case learn = "Learn"
+    case stats = "Stats"
+    case settings = "Setup"
 
     var icon: String {
         switch self {
         case .agenda: return "calendar"
-        case .habits: return "checkmark.seal.fill"
-        case .ask: return "bubble.left.and.text.bubble.right.fill"
+        case .habits: return "checkmark.circle"
+        case .ask: return "bubble.left.and.text.bubble.right"
         case .learn: return "brain.head.profile"
-        case .stats: return "chart.bar.fill"
-        case .settings: return "gearshape.fill"
+        case .stats: return "chart.bar"
+        case .settings: return "gearshape"
         }
     }
 }
 
 struct ContentView: View {
-    @State private var tab: ComicTab = .agenda
+    /// `-initialTab Habits` at launch (screenshots, demos); Agenda otherwise.
+    @State private var tab: AppTab = AppTab(rawValue: UserDefaults.standard.string(forKey: "initialTab") ?? "") ?? .agenda
     /// Lives here so switching tabs doesn't wipe the conversation.
     @State private var chatTurns: [AssistantService.Turn] = []
 
     var body: some View {
-        ZStack {
-            Comic.paper.ignoresSafeArea()
-
-            Group {
-                switch tab {
-                case .agenda: AgendaView()
-                case .habits: HabitsView()
-                case .ask: ChatView(turns: $chatTurns)
-                case .learn: LearnView()
-                case .stats: StatsView()
-                case .settings: SettingsView()
-                }
+        // Native tab bar; past five tabs iOS adds its standard "More" tab.
+        TabView(selection: $tab) {
+            ForEach(AppTab.allCases, id: \.self) { tab in
+                screen(for: tab)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Palette.paper.ignoresSafeArea())
+                    .tabItem { Label(tab.rawValue, systemImage: tab.icon) }
+                    .tag(tab)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .safeAreaInset(edge: .bottom) {
-            ComicTabBar(selection: $tab)
         }
         .preferredColorScheme(.light)
     }
-}
 
-struct ComicTabBar: View {
-    @Binding var selection: ComicTab
-
-    var body: some View {
-        HStack(spacing: 6) {
-            ForEach(ComicTab.allCases, id: \.self) { tab in
-                let isSelected = selection == tab
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                        selection = tab
-                    }
-                } label: {
-                    VStack(spacing: 3) {
-                        Image(systemName: tab.icon)
-                            .font(.system(size: 16, weight: .bold))
-                        Text(tab.rawValue)
-                            .font(.bangers(11))
-                            .minimumScaleFactor(0.6)
-                            .lineLimit(1)
-                    }
-                    .foregroundStyle(Comic.ink)
-                    .frame(maxWidth: .infinity, minHeight: 50)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(isSelected ? Comic.yellow : Color.white)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Comic.ink, lineWidth: isSelected ? 2.5 : 1.5)
-                    )
-                    .scaleEffect(isSelected ? 1.05 : 1)
-                }
-                .buttonStyle(.plain)
-            }
+    @ViewBuilder
+    private func screen(for tab: AppTab) -> some View {
+        switch tab {
+        case .agenda: AgendaView()
+        case .habits: HabitsView()
+        case .ask: ChatView(turns: $chatTurns)
+        case .learn: LearnView()
+        case .stats: StatsView()
+        case .settings: SettingsView()
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(
-            Rectangle()
-                .fill(Comic.paper)
-                .overlay(Rectangle().frame(height: 2.5).foregroundStyle(Comic.ink), alignment: .top)
-                .ignoresSafeArea(edges: .bottom)
-        )
     }
 }
 

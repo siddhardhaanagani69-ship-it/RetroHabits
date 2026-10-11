@@ -9,13 +9,13 @@ struct HeroRank: Identifiable, Equatable {
     let color: Color
 
     static let all: [HeroRank] = [
-        HeroRank(title: "ROOKIE",    threshold: 0,     color: Comic.ink.opacity(0.6)),
-        HeroRank(title: "SIDEKICK",  threshold: 250,   color: Comic.blue),
-        HeroRank(title: "VIGILANTE", threshold: 750,   color: Comic.orange),
-        HeroRank(title: "HERO",      threshold: 1_500, color: Comic.red),
-        HeroRank(title: "AVENGER",   threshold: 3_000, color: Color(red: 0.55, green: 0.2, blue: 0.75)),
-        HeroRank(title: "LEGEND",    threshold: 6_000, color: Color(red: 0.85, green: 0.65, blue: 0.0)),
-        HeroRank(title: "COSMIC",    threshold: 12_000, color: Color(red: 0.0, green: 0.65, blue: 0.55))
+        HeroRank(title: "Rookie",    threshold: 0,     color: Palette.ink.opacity(0.6)),
+        HeroRank(title: "Sidekick",  threshold: 250,   color: Palette.blue),
+        HeroRank(title: "Vigilante", threshold: 750,   color: Palette.orange),
+        HeroRank(title: "Hero",      threshold: 1_500, color: Palette.red),
+        HeroRank(title: "Avenger",   threshold: 3_000, color: Color(red: 0.55, green: 0.2, blue: 0.75)),
+        HeroRank(title: "Legend",    threshold: 6_000, color: Color(red: 0.85, green: 0.65, blue: 0.0)),
+        HeroRank(title: "Cosmic",    threshold: 12_000, color: Color(red: 0.0, green: 0.65, blue: 0.55))
     ]
 
     static func rank(for xp: Int) -> HeroRank {
@@ -42,26 +42,26 @@ struct Achievement: Identifiable {
     static let all: [Achievement] = [
         Achievement(
             id: "first-habit",
-            title: "ORIGIN STORY",
+            title: "Origin Story",
             detail: "Create your first habit",
             symbol: "sparkles",
-            color: Comic.blue,
+            color: Palette.blue,
             isUnlocked: { !$0.isEmpty }
         ),
         Achievement(
             id: "first-done",
-            title: "FIRST BLOOD",
+            title: "First Blood",
             detail: "Complete a habit once",
             symbol: "checkmark.seal.fill",
-            color: Comic.red,
+            color: Palette.red,
             isUnlocked: { $0.contains { !$0.completedDays.isEmpty } }
         ),
         Achievement(
             id: "perfect-day",
-            title: "FLAWLESS",
+            title: "Flawless",
             detail: "Finish everything in one day",
             symbol: "star.fill",
-            color: Comic.yellow,
+            color: Palette.yellow,
             isUnlocked: { habits in
                 let todays = habits.filter { $0.isScheduled(on: Date()) }
                 return !todays.isEmpty && todays.allSatisfy { $0.isCompleted(on: Date()) }
@@ -69,23 +69,23 @@ struct Achievement: Identifiable {
         ),
         Achievement(
             id: "streak-7",
-            title: "THE UNBROKEN",
+            title: "The Unbroken",
             detail: "Reach a 7-day streak",
             symbol: "flame.fill",
-            color: Comic.orange,
+            color: Palette.orange,
             isUnlocked: { $0.contains { $0.longestStreak >= 7 } }
         ),
         Achievement(
             id: "streak-30",
-            title: "IRON WILL",
+            title: "Iron Will",
             detail: "Reach a 30-day streak",
             symbol: "shield.lefthalf.filled",
-            color: Comic.red,
+            color: Palette.red,
             isUnlocked: { $0.contains { $0.longestStreak >= 30 } }
         ),
         Achievement(
             id: "streak-100",
-            title: "IMMORTAL",
+            title: "Immortal",
             detail: "Reach a 100-day streak",
             symbol: "crown.fill",
             color: Color(red: 0.85, green: 0.65, blue: 0.0),
@@ -93,31 +93,31 @@ struct Achievement: Identifiable {
         ),
         Achievement(
             id: "squad",
-            title: "ASSEMBLE",
+            title: "Assemble",
             detail: "Track 5 habits at once",
             symbol: "person.3.fill",
-            color: Comic.blue,
+            color: Palette.blue,
             isUnlocked: { $0.count >= 5 }
         ),
         Achievement(
             id: "total-50",
-            title: "GRINDER",
+            title: "Grinder",
             detail: "50 total completions",
             symbol: "bolt.fill",
-            color: Comic.orange,
+            color: Palette.orange,
             isUnlocked: { Gamification.totalCompletions($0) >= 50 }
         ),
         Achievement(
             id: "total-250",
-            title: "POWERHOUSE",
+            title: "Powerhouse",
             detail: "250 total completions",
             symbol: "bolt.horizontal.fill",
-            color: Comic.red,
+            color: Palette.red,
             isUnlocked: { Gamification.totalCompletions($0) >= 250 }
         ),
         Achievement(
             id: "total-1000",
-            title: "COSMIC ENTITY",
+            title: "Cosmic Entity",
             detail: "1,000 total completions",
             symbol: "globe.americas.fill",
             color: Color(red: 0.0, green: 0.65, blue: 0.55),

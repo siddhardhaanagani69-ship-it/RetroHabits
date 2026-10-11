@@ -18,35 +18,35 @@ struct MemoryInspector: View {
 
     var body: some View {
         ZStack {
-            Comic.paper.ignoresSafeArea()
+            Palette.paper.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    ComicHeader(title: "WHY?", subtitle: title)
+                    ScreenHeader(title: "Why?", subtitle: title)
                         .padding(.top, 20)
 
                     if !records.isEmpty {
-                        ComicPanel {
+                        Card {
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("RECORDS IT USED").font(.bangers(16)).foregroundStyle(Comic.blue)
-                                ForEach(records, id: \.self) { Text("• \($0)").font(.comic(13)).foregroundStyle(Comic.ink) }
+                                Text("Records it used").font(.heading(16)).foregroundStyle(Palette.blue)
+                                ForEach(records, id: \.self) { Text("• \($0)").font(.bodyMedium(13)).foregroundStyle(Palette.ink) }
                             }
                         }
                     }
 
-                    Text(memories.isEmpty ? "NO MEMORIES WERE USED" : "MEMORIES IT WAS GIVEN")
-                        .font(.bangers(18)).foregroundStyle(Comic.red)
+                    Text(memories.isEmpty ? "No memories were used" : "Memories it was given")
+                        .font(.heading(18)).foregroundStyle(Palette.red)
 
                     ForEach(memories) { memory in
                         memoryCard(memory)
                     }
 
                     Text("Corrections and deletions change the stored memory itself — every later suggestion uses the fixed version.")
-                        .font(.comicLight(11)).foregroundStyle(Comic.ink.opacity(0.55))
+                        .font(.bodyRegular(11)).foregroundStyle(Palette.ink.opacity(0.55))
                         .fixedSize(horizontal: false, vertical: true)
-                    if let error { Text(error).font(.comic(13)).foregroundStyle(Comic.red) }
+                    if let error { Text(error).font(.bodyMedium(13)).foregroundStyle(Palette.red) }
 
-                    Button { dismiss() } label: { Text("DONE").frame(maxWidth: .infinity) }
-                        .buttonStyle(ComicButtonStyle())
+                    Button { dismiss() } label: { Text("Done").frame(maxWidth: .infinity) }
+                        .buttonStyle(FilledButtonStyle())
                         .padding(.bottom, 24)
                 }
                 .padding(.horizontal, 16)
@@ -56,34 +56,34 @@ struct MemoryInspector: View {
     }
 
     private func memoryCard(_ memory: AssistantService.MemoryRef) -> some View {
-        ComicPanel {
+        Card {
             VStack(alignment: .leading, spacing: 8) {
                 if memory.weak == true {
-                    Text("LOOSE MATCH — MAY NOT BE RELEVANT")
-                        .font(.bangers(11)).foregroundStyle(.white)
+                    Text("Loose match — may not be relevant")
+                        .font(.heading(11)).foregroundStyle(.white)
                         .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Capsule().fill(Comic.orange))
+                        .background(Capsule().fill(Palette.orange))
                 }
                 if editing == memory.id {
                     TextField("What's actually true?", text: $draft, axis: .vertical)
-                        .font(.comic(14)).foregroundStyle(Comic.ink)
+                        .font(.bodyMedium(14)).foregroundStyle(Palette.ink)
                         .padding(8)
-                        .background(Comic.paper)
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2))
+                        .background(Palette.paper)
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.hairline, lineWidth: 1))
                     HStack {
-                        Button("CANCEL") { editing = nil }.buttonStyle(ComicButtonStyle(fill: .white))
-                        Button("SAVE") { Task { await save(memory) } }
-                            .buttonStyle(ComicButtonStyle(fill: Comic.red, textColor: .white))
+                        Button("Cancel") { editing = nil }.buttonStyle(FilledButtonStyle())
+                        Button("Save") { Task { await save(memory) } }
+                            .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
                             .disabled(busy || draft.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
                 } else {
-                    Text("“\(memory.content)”").font(.comic(14)).foregroundStyle(Comic.ink)
+                    Text("“\(memory.content)”").font(.bodyMedium(14)).foregroundStyle(Palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     HStack {
-                        Button("CORRECT") { draft = memory.content; editing = memory.id }
-                            .buttonStyle(ComicButtonStyle(fill: Comic.yellow))
-                        Button("FORGET") { Task { await forget(memory) } }
-                            .buttonStyle(ComicButtonStyle(fill: .white))
+                        Button("Correct") { draft = memory.content; editing = memory.id }
+                            .buttonStyle(FilledButtonStyle())
+                        Button("Forget") { Task { await forget(memory) } }
+                            .buttonStyle(FilledButtonStyle())
                     }
                     .disabled(busy)
                 }
@@ -119,18 +119,18 @@ struct MemoryInspector: View {
     }
 }
 
-/// Small "WHY?" pill that opens the inspector.
+/// Small "Why?" pill that opens the inspector.
 struct WhyButton: View {
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Label("WHY?", systemImage: "magnifyingglass")
-                .font(.bangers(12))
-                .foregroundStyle(Comic.ink)
+            Label("Why?", systemImage: "magnifyingglass")
+                .font(.heading(12))
+                .foregroundStyle(Palette.ink)
                 .padding(.horizontal, 8).padding(.vertical, 3)
-                .background(Capsule().fill(Color.white))
-                .overlay(Capsule().stroke(Comic.ink, lineWidth: 1.5))
+                .background(Capsule().fill(Palette.panel))
+                .overlay(Capsule().stroke(Palette.hairline, lineWidth: 1))
         }
         .buttonStyle(.plain)
     }
@@ -147,11 +147,11 @@ struct AllMemoriesSheet: View {
                 MemoryInspector(title: "Everything I remember about you.", memories: memories)
             } else {
                 ZStack {
-                    Comic.paper.ignoresSafeArea()
+                    Palette.paper.ignoresSafeArea()
                     if failed {
-                        Text("Couldn't reach the assistant server.").font(.comic(14)).foregroundStyle(Comic.red)
+                        Text("Couldn't reach the assistant server.").font(.bodyMedium(14)).foregroundStyle(Palette.red)
                     } else {
-                        ProgressView().tint(Comic.ink)
+                        ProgressView().tint(Palette.ink)
                     }
                 }
             }

@@ -63,16 +63,7 @@ The widget reads a file the app writes. They can only share it through an App Gr
    - `Gamification.swift`
    - `Theme.swift`
 
-## 4. Share the fonts
-
-1. Select `Bangers-Regular.ttf`, `ComicNeue-Regular.ttf`, and `ComicNeue-Bold.ttf`.
-2. In the File Inspector, tick **RetroHabitsWidget** under Target Membership.
-3. Open the widget's `Info.plist`, add a key **`UIAppFonts`** (Fonts provided by application),
-   and add the three filenames as items — same as the main app's Info.plist.
-
-If you skip this step the widget still works, it just falls back to the system font.
-
-## 5. Run it
+## 4. Run it
 
 1. Set the scheme back to **RetroHabits** (top-left dropdown) and press **Run**.
 2. Open the app once so it writes the first snapshot.

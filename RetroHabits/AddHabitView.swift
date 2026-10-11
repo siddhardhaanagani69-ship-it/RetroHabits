@@ -18,31 +18,31 @@ struct AddHabitView: View {
 
     var body: some View {
         ZStack {
-            Comic.paper.ignoresSafeArea()
+            Palette.paper.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    ComicHeader(title: habit == nil ? "NEW MISSION" : "EDIT MISSION")
+                    ScreenHeader(title: habit == nil ? "New Habit" : "Edit Habit")
                         .padding(.top, 20)
 
-                    ComicPanel {
+                    Card {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("NAME")
-                                .font(.bangers(18))
-                                .foregroundStyle(Comic.blue)
+                            Text("Name")
+                                .font(.heading(18))
+                                .foregroundStyle(Palette.blue)
                             TextField("e.g. Read 20 minutes", text: $name)
-                                .font(.comic(16))
-                                .foregroundStyle(Comic.ink)
+                                .font(.bodyMedium(16))
+                                .foregroundStyle(Palette.ink)
                                 .padding(10)
-                                .background(Comic.paper)
-                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2))
+                                .background(Palette.paper)
+                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.hairline, lineWidth: 1))
                         }
                     }
 
-                    ComicPanel {
+                    Card {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("ICON")
-                                .font(.bangers(18))
-                                .foregroundStyle(Comic.blue)
+                            Text("Icon")
+                                .font(.heading(18))
+                                .foregroundStyle(Palette.blue)
                             LazyVGrid(
                                 columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 6),
                                 spacing: 8
@@ -58,11 +58,11 @@ struct AddHabitView: View {
                                             .frame(maxWidth: .infinity, minHeight: 44)
                                             .background(
                                                 RoundedRectangle(cornerRadius: 6)
-                                                    .fill(icon == candidate ? Comic.yellow : Color.white)
+                                                    .fill(icon == candidate ? Palette.yellow : Palette.panel)
                                             )
                                             .overlay(
                                                 RoundedRectangle(cornerRadius: 6)
-                                                    .stroke(Comic.ink, lineWidth: icon == candidate ? 2.5 : 1.5)
+                                                    .stroke(icon == candidate ? Palette.blue : Palette.hairline, lineWidth: icon == candidate ? 2 : 1)
                                             )
                                             .scaleEffect(icon == candidate ? 1.08 : 1)
                                     }
@@ -72,11 +72,11 @@ struct AddHabitView: View {
                         }
                     }
 
-                    ComicPanel {
+                    Card {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("REPEAT ON")
-                                .font(.bangers(18))
-                                .foregroundStyle(Comic.blue)
+                            Text("Repeat on")
+                                .font(.heading(18))
+                                .foregroundStyle(Palette.blue)
                             HStack(spacing: 6) {
                                 ForEach(1...7, id: \.self) { day in
                                     let isOn = weekdays.contains(day)
@@ -90,16 +90,16 @@ struct AddHabitView: View {
                                         }
                                     } label: {
                                         Text(dayLetters[day - 1])
-                                            .font(.bangers(18))
-                                            .foregroundStyle(isOn ? .white : Comic.ink.opacity(0.6))
+                                            .font(.heading(18))
+                                            .foregroundStyle(isOn ? .white : Palette.ink.opacity(0.6))
                                             .frame(maxWidth: .infinity, minHeight: 42)
                                             .background(
                                                 RoundedRectangle(cornerRadius: 6)
-                                                    .fill(isOn ? Comic.red : Color.white)
+                                                    .fill(isOn ? Palette.red : Palette.panel)
                                             )
                                             .overlay(
                                                 RoundedRectangle(cornerRadius: 6)
-                                                    .stroke(Comic.ink, lineWidth: 2)
+                                                    .stroke(Palette.hairline, lineWidth: 1)
                                             )
                                     }
                                     .buttonStyle(.plain)
@@ -108,27 +108,27 @@ struct AddHabitView: View {
                         }
                     }
 
-                    ComicPanel {
+                    Card {
                         VStack(alignment: .leading, spacing: 10) {
                             Toggle(isOn: $reminderOn.animation()) {
-                                Text("BAT-SIGNAL REMINDER")
-                                    .font(.bangers(18))
-                                    .foregroundStyle(Comic.blue)
+                                Text("Reminder")
+                                    .font(.heading(18))
+                                    .foregroundStyle(Palette.blue)
                             }
-                            .tint(Comic.red)
+                            .tint(Palette.red)
                             if reminderOn {
                                 DatePicker("", selection: $reminderTime, displayedComponents: .hourAndMinute)
                                     .datePickerStyle(.wheel)
                                     .labelsHidden()
                                     .frame(maxWidth: .infinity)
                                 Stepper(value: $duration, in: 15...240, step: 15) {
-                                    Text("TAKES ABOUT \(duration) MIN")
-                                        .font(.bangers(16))
-                                        .foregroundStyle(Comic.ink)
+                                    Text("Takes about \(duration) min")
+                                        .font(.heading(16))
+                                        .foregroundStyle(Palette.ink)
                                 }
                                 Text("You'll get a notification on each scheduled day. This time is also the habit's planned slot — Ripple Mode checks it for conflicts.")
-                                    .font(.comicLight(12))
-                                    .foregroundStyle(Comic.ink.opacity(0.6))
+                                    .font(.bodyRegular(12))
+                                    .foregroundStyle(Palette.ink.opacity(0.6))
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
@@ -138,16 +138,16 @@ struct AddHabitView: View {
                         Button {
                             dismiss()
                         } label: {
-                            Text("CANCEL").frame(maxWidth: .infinity)
+                            Text("Cancel").frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(ComicButtonStyle(fill: .white))
+                        .buttonStyle(FilledButtonStyle())
 
                         Button {
                             saveAndClose()
                         } label: {
-                            Text("SAVE").frame(maxWidth: .infinity)
+                            Text("Save").frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(ComicButtonStyle(fill: Comic.red, textColor: .white))
+                        .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                         .opacity(name.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
                     }

@@ -11,9 +11,9 @@ enum LeadTimeProfile: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .earlyWarning: return "EARLY WARNING"
-        case .standard: return "STANDARD"
-        case .lastMinute: return "LAST MINUTE"
+        case .earlyWarning: return "Early"
+        case .standard: return "Standard"
+        case .lastMinute: return "Last Minute"
         }
     }
 

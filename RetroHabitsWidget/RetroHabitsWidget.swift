@@ -55,8 +55,8 @@ private enum W {
     static let yellow = Color(red: 1.00, green: 0.80, blue: 0.00)
     static let blue = Color(red: 0.00, green: 0.45, blue: 0.85)
 
-    static func bangers(_ size: CGFloat) -> Font { .custom("Bangers-Regular", size: size) }
-    static func comic(_ size: CGFloat) -> Font { .custom("ComicNeue-Bold", size: size) }
+    static func bangers(_ size: CGFloat) -> Font { .system(size: size * 0.82, weight: .bold) }
+    static func comic(_ size: CGFloat) -> Font { .system(size: size, weight: .medium) }
 }
 
 // MARK: - Views

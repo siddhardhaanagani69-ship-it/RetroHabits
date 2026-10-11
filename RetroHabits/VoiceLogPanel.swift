@@ -70,7 +70,7 @@ struct VoiceLogPanel: View {
     @StateObject private var recorder = VoiceRecorder()
 
     var body: some View {
-        ComicPanel(tilt: -0.4) {
+        Card {
             VStack(alignment: .leading, spacing: 10) {
                 Button {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -79,7 +79,7 @@ struct VoiceLogPanel: View {
                     Label(buttonTitle, systemImage: buttonIcon)
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(ComicButtonStyle(fill: isRecording ? Comic.red : Comic.blue, textColor: .white))
+                .buttonStyle(FilledButtonStyle(fill: isRecording ? Palette.red : Palette.blue, textColor: .white))
                 .disabled(isSending)
 
                 result
@@ -92,43 +92,43 @@ struct VoiceLogPanel: View {
         switch recorder.state {
         case .idle:
             Text("Say what you did: \"Leg day, squats 3 by 8 at 135…\"")
-                .font(.comicLight(12))
-                .foregroundStyle(Comic.ink.opacity(0.6))
+                .font(.bodyRegular(12))
+                .foregroundStyle(Palette.ink.opacity(0.6))
         case .recording:
             Text("Listening… tap again when you're done.")
-                .font(.comic(13))
-                .foregroundStyle(Comic.red)
+                .font(.bodyMedium(13))
+                .foregroundStyle(Palette.red)
         case .sending:
             HStack(spacing: 8) {
-                ProgressView().tint(Comic.ink)
-                Text("Logging it…").font(.comic(13)).foregroundStyle(Comic.ink)
+                ProgressView().tint(Palette.ink)
+                Text("Logging it…").font(.bodyMedium(13)).foregroundStyle(Palette.ink)
             }
         case .done(let log):
             VStack(alignment: .leading, spacing: 4) {
-                Text("LOGGED: \(log.title.uppercased())")
-                    .font(.bangers(20))
-                    .foregroundStyle(Comic.red)
+                Text("Logged: \(log.title)")
+                    .font(.heading(20))
+                    .foregroundStyle(Palette.red)
                 ForEach(Array(log.exercises.enumerated()), id: \.offset) { _, exercise in
                     Text("• \(exercise.line)")
-                        .font(.comic(14))
-                        .foregroundStyle(Comic.ink)
+                        .font(.bodyMedium(14))
+                        .foregroundStyle(Palette.ink)
                 }
                 if log.exercises.isEmpty {
                     Text(log.transcript)
-                        .font(.comicLight(13))
-                        .foregroundStyle(Comic.ink)
+                        .font(.bodyRegular(13))
+                        .foregroundStyle(Palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if let mood = log.mood {
-                    Text("MOOD: \(mood.uppercased())")
-                        .font(.bangers(13))
-                        .foregroundStyle(Comic.ink.opacity(0.6))
+                    Text("Mood: \(mood)")
+                        .font(.heading(13))
+                        .foregroundStyle(Palette.ink.opacity(0.6))
                 }
             }
         case .failed(let message):
             Text(message)
-                .font(.comic(13))
-                .foregroundStyle(Comic.red)
+                .font(.bodyMedium(13))
+                .foregroundStyle(Palette.red)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -144,7 +144,7 @@ struct VoiceLogPanel: View {
     }
 
     private var buttonTitle: String {
-        isRecording ? "STOP & LOG" : isSending ? "LOGGING…" : "VOICE LOG"
+        isRecording ? "Stop & Log" : isSending ? "Logging…" : "Voice Log"
     }
 
     private var buttonIcon: String {

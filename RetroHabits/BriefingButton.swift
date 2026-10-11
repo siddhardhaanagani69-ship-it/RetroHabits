@@ -53,13 +53,13 @@ struct BriefingButton: View {
             Task { await player.toggle() }
         } label: {
             switch player.state {
-            case .loading: ProgressView().tint(Comic.ink)
+            case .loading: ProgressView().tint(Palette.ink)
             case .playing: Image(systemName: "stop.fill").font(.system(size: 16, weight: .black))
             case .idle: Image(systemName: "speaker.wave.2.fill").font(.system(size: 16, weight: .black))
             }
         }
-        .buttonStyle(ComicButtonStyle(fill: player.state == .playing ? Comic.red : Comic.yellow,
-                                      textColor: player.state == .playing ? .white : Comic.ink))
+        .buttonStyle(FilledButtonStyle(fill: player.state == .playing ? Palette.red : Palette.fill,
+                                      textColor: player.state == .playing ? .white : Palette.blue))
         .accessibilityLabel(player.state == .playing ? "Stop briefing" : "Play today's briefing")
     }
 }

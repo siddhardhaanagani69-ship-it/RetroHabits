@@ -71,15 +71,15 @@ private struct PipelineArt: View {
                 ForEach(0..<3, id: \.self) { index in
                     let x = w * (0.08 + Double(index) * 0.31)
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(index == 1 ? color : Color.white)
+                        .fill(index == 1 ? color : Palette.panel)
                         .frame(width: boxW, height: boxH)
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 3))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.hairline, lineWidth: 1))
                         .position(x: x + boxW / 2, y: y + boxH / 2)
                 }
                 ForEach(0..<2, id: \.self) { index in
                     let startX = w * (0.08 + Double(index) * 0.31) + boxW
                     Arrow()
-                        .stroke(Comic.ink, style: StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round))
+                        .stroke(Palette.ink, style: StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round))
                         .frame(width: w * 0.11, height: 16)
                         .position(x: startX + w * 0.055, y: h / 2)
                 }
@@ -121,14 +121,14 @@ private struct AttentionArt: View {
                     Rectangle()
                         .fill(color.opacity(0.15 + weights[index] * 0.85))
                         .frame(width: cell - 2, height: cell - 2)
-                        .overlay(Rectangle().stroke(Comic.ink.opacity(0.4), lineWidth: 1))
+                        .overlay(Rectangle().stroke(Palette.ink.opacity(0.4), lineWidth: 1))
                         .position(
                             x: originX + cell * (CGFloat(col) + 0.5),
                             y: originY + cell * (CGFloat(row) + 0.5)
                         )
                 }
                 Rectangle()
-                    .stroke(Comic.ink, lineWidth: 3)
+                    .stroke(Palette.hairline, lineWidth: 1)
                     .frame(width: side, height: side)
             }
         }
@@ -158,13 +158,13 @@ private struct VectorArt: View {
                     path.addLine(to: origin)
                     path.addLine(to: CGPoint(x: geo.size.width * 0.9, y: origin.y))
                 }
-                .stroke(Comic.ink, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(Palette.ink, style: StrokeStyle(lineWidth: 3, lineCap: .round))
 
                 ForEach(0..<points.count, id: \.self) { index in
                     Circle()
-                        .fill(index % 3 == 0 ? color : Color.white)
+                        .fill(index % 3 == 0 ? color : Palette.panel)
                         .frame(width: 15, height: 15)
-                        .overlay(Circle().stroke(Comic.ink, lineWidth: 2.5))
+                        .overlay(Circle().stroke(Palette.hairline, lineWidth: 1))
                         .position(points[index])
                 }
             }
@@ -183,9 +183,9 @@ private struct StackArt: View {
                 ForEach(0..<count, id: \.self) { index in
                     let inset = CGFloat(index) * geo.size.width * 0.035
                     RoundedRectangle(cornerRadius: 5)
-                        .fill(index.isMultiple(of: 2) ? color.opacity(0.85) : Color.white)
+                        .fill(index.isMultiple(of: 2) ? color.opacity(0.85) : Palette.panel)
                         .frame(width: geo.size.width * 0.62 - inset, height: slabH)
-                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(Comic.ink, lineWidth: 3))
+                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(Palette.hairline, lineWidth: 1))
                         .position(
                             x: geo.size.width / 2,
                             y: geo.size.height * 0.26 + CGFloat(index) * slabH * 1.35
@@ -229,19 +229,19 @@ private struct NetworkArt: View {
                         path.addLine(to: nodes[(index + 2) % nodes.count])
                     }
                 }
-                .stroke(Comic.ink.opacity(0.75), lineWidth: 2)
+                .stroke(Palette.ink.opacity(0.75), lineWidth: 2)
 
                 ForEach(0..<nodes.count, id: \.self) { index in
                     Circle()
-                        .fill(Color.white)
+                        .fill(Palette.panel)
                         .frame(width: 20, height: 20)
-                        .overlay(Circle().stroke(Comic.ink, lineWidth: 2.5))
+                        .overlay(Circle().stroke(Palette.hairline, lineWidth: 1))
                         .position(nodes[index])
                 }
                 Circle()
                     .fill(color)
                     .frame(width: 30, height: 30)
-                    .overlay(Circle().stroke(Comic.ink, lineWidth: 3))
+                    .overlay(Circle().stroke(Palette.hairline, lineWidth: 1))
                     .position(center)
             }
         }
@@ -260,7 +260,7 @@ private struct CurveArt: View {
                     path.addLine(to: origin)
                     path.addLine(to: CGPoint(x: geo.size.width * 0.88, y: origin.y))
                 }
-                .stroke(Comic.ink, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(Palette.ink, style: StrokeStyle(lineWidth: 3, lineCap: .round))
 
                 // Decaying loss curve.
                 Path { path in
@@ -285,7 +285,7 @@ private struct CurveArt: View {
                         if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
                     }
                 }
-                .stroke(Comic.ink, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .stroke(Palette.ink, style: StrokeStyle(lineWidth: 2, lineCap: .round))
             }
         }
     }
@@ -306,9 +306,9 @@ private struct TokenArt: View {
             ZStack(alignment: .topLeading) {
                 ForEach(0..<boxes.count, id: \.self) { index in
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(boxes[index].filled ? color : Color.white)
+                        .fill(boxes[index].filled ? color : Palette.panel)
                         .frame(width: boxes[index].rect.width, height: boxes[index].rect.height)
-                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(Comic.ink, lineWidth: 2.5))
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(Palette.hairline, lineWidth: 1))
                         .position(x: boxes[index].rect.midX, y: boxes[index].rect.midY)
                 }
             }
@@ -372,15 +372,15 @@ private struct ClusterArt: View {
             ZStack {
                 ForEach(0..<centers.count, id: \.self) { index in
                     Circle()
-                        .stroke(Comic.ink.opacity(0.5), style: StrokeStyle(lineWidth: 2.5, dash: [7, 5]))
+                        .stroke(Palette.ink.opacity(0.5), style: StrokeStyle(lineWidth: 2.5, dash: [7, 5]))
                         .frame(width: spread * 3, height: spread * 3)
                         .position(centers[index])
                 }
                 ForEach(0..<dots.count, id: \.self) { index in
                     Circle()
-                        .fill(dots[index].1 == 1 ? color : Color.white)
+                        .fill(dots[index].1 == 1 ? color : Palette.panel)
                         .frame(width: 15, height: 15)
-                        .overlay(Circle().stroke(Comic.ink, lineWidth: 2.5))
+                        .overlay(Circle().stroke(Palette.hairline, lineWidth: 1))
                         .position(dots[index].0)
                 }
             }

@@ -23,11 +23,11 @@ struct CaptureView: View {
             pickerPanel
             if isLoading {
                 HStack(spacing: 8) {
-                    ProgressView().tint(Comic.ink)
-                    Text("Reading the flyer…").font(.comic(14)).foregroundStyle(Comic.ink)
+                    ProgressView().tint(Palette.ink)
+                    Text("Reading the flyer…").font(.bodyMedium(14)).foregroundStyle(Palette.ink)
                 }
             }
-            if let error { Text(error).font(.comic(13)).foregroundStyle(Comic.red) }
+            if let error { Text(error).font(.bodyMedium(13)).foregroundStyle(Palette.red) }
             if let result { resultPanel(result) }
         }
         .onChange(of: photo) { _, item in
@@ -58,23 +58,23 @@ struct CaptureView: View {
     }
 
     private var pickerPanel: some View {
-        ComicPanel(tilt: 0.3) {
+        Card {
             VStack(alignment: .leading, spacing: 10) {
-                Text("CAMPUS CAPTURE").font(.bangers(22)).foregroundStyle(Comic.blue)
+                Text("Campus Capture").font(.heading(22)).foregroundStyle(Palette.blue)
                 Text("Snap an event flyer. I'll check it against your calendar and what you've told me you're into.")
-                    .font(.comicLight(12)).foregroundStyle(Comic.ink.opacity(0.65))
+                    .font(.bodyRegular(12)).foregroundStyle(Palette.ink.opacity(0.65))
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 10) {
                     if UIImagePickerController.isSourceTypeAvailable(.camera) {
                         Button { showingCamera = true } label: {
-                            Label("SNAP", systemImage: "camera.fill").frame(maxWidth: .infinity)
+                            Label("Snap", systemImage: "camera.fill").frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(ComicButtonStyle(fill: Comic.red, textColor: .white))
+                        .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
                     }
                     PhotosPicker(selection: $photo, matching: .images) {
-                        Label("PICK PHOTO", systemImage: "photo.fill").frame(maxWidth: .infinity)
+                        Label("Pick Photo", systemImage: "photo.fill").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(ComicButtonStyle())
+                    .buttonStyle(FilledButtonStyle())
                 }
                 .disabled(isLoading)
                 if let image {
@@ -82,54 +82,54 @@ struct CaptureView: View {
                         .resizable().scaledToFit()
                         .frame(maxHeight: 160)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.hairline, lineWidth: 1))
                 }
             }
         }
     }
 
     private func resultPanel(_ r: AssistantService.CaptureResult) -> some View {
-        ComicPanel(fill: Comic.yellow.opacity(0.4)) {
+        Card(fill: Palette.yellow.opacity(0.4)) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(r.event.title.uppercased()).font(.bangers(22)).foregroundStyle(Comic.ink)
+                Text(r.event.title).font(.heading(22)).foregroundStyle(Palette.ink)
                 if let start = r.event.start {
                     Label(RippleView.range(start, r.event.end), systemImage: "clock.fill")
-                        .font(.comic(13)).foregroundStyle(Comic.ink)
+                        .font(.bodyMedium(13)).foregroundStyle(Palette.ink)
                 }
                 if let location = r.event.location {
-                    Label(location, systemImage: "mappin.and.ellipse").font(.comic(13)).foregroundStyle(Comic.ink)
+                    Label(location, systemImage: "mappin.and.ellipse").font(.bodyMedium(13)).foregroundStyle(Palette.ink)
                 }
                 Label(r.event.cost ?? "Price not on the flyer", systemImage: "tag.fill")
-                    .font(.comic(13)).foregroundStyle(r.event.cost == nil ? Comic.red : Comic.ink)
+                    .font(.bodyMedium(13)).foregroundStyle(r.event.cost == nil ? Palette.red : Palette.ink)
 
-                Divider().overlay(Comic.ink.opacity(0.3))
+                Divider().overlay(Palette.ink.opacity(0.3))
                 ForEach(r.verdict, id: \.self) { line in
-                    Text("• \(line)").font(.comic(14)).foregroundStyle(Comic.ink)
+                    Text("• \(line)").font(.bodyMedium(14)).foregroundStyle(Palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if !r.interests.isEmpty {
                     WhyButton { inspecting = true }
                 }
                 ForEach(r.event.assumptions, id: \.self) { assumption in
-                    Text("ASSUMED: \(assumption)").font(.comicLight(11)).foregroundStyle(Comic.orange)
+                    Text("Assumed: \(assumption)").font(.bodyRegular(11)).foregroundStyle(Palette.orange)
                 }
 
                 if r.event.isEvent {
                     VStack(spacing: 8) {
                         if r.event.start != nil {
                             Button { saving = true } label: {
-                                Label("SAVE TO CALENDAR", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity)
+                                Label("Save to Calendar", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity)
                             }
-                            .buttonStyle(ComicButtonStyle(fill: Comic.blue, textColor: .white))
+                            .buttonStyle(FilledButtonStyle(fill: Palette.blue, textColor: .white))
                             Button { onPlanAround(planSentence(r.event)) } label: {
-                                Label("PLAN AROUND IT", systemImage: "dot.radiowaves.right").frame(maxWidth: .infinity)
+                                Label("Plan Around It", systemImage: "dot.radiowaves.right").frame(maxWidth: .infinity)
                             }
-                            .buttonStyle(ComicButtonStyle(fill: Comic.red, textColor: .white))
+                            .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
                         }
                         Button { withAnimation { result = nil; image = nil; photo = nil } } label: {
-                            Text("NOT INTERESTED").frame(maxWidth: .infinity)
+                            Text("Not Interested").frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(ComicButtonStyle(fill: .white))
+                        .buttonStyle(FilledButtonStyle())
                     }
                     .padding(.top, 4)
                 }

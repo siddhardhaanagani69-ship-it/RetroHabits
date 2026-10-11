@@ -130,12 +130,12 @@ enum AgendaItemKind: String, Codable {
 
     var label: String {
         switch self {
-        case .assignment: return "ASSIGNMENT"
-        case .quiz: return "QUIZ"
-        case .discussion: return "DISCUSSION"
-        case .event: return "EVENT"
-        case .note: return "NOTE"
-        case .announcement: return "NEWS"
+        case .assignment: return "Assignment"
+        case .quiz: return "Quiz"
+        case .discussion: return "Discussion"
+        case .event: return "Event"
+        case .note: return "Note"
+        case .announcement: return "News"
         }
     }
 

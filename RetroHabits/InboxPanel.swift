@@ -9,37 +9,37 @@ struct InboxPanel: View {
     var body: some View {
         Group {
             if !mails.isEmpty {
-                ComicPanel(tilt: -0.4) {
+                Card {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("INBOX BRIEF")
-                            .font(.bangers(20))
-                            .foregroundStyle(Comic.orange)
+                        Text("Inbox")
+                            .font(.heading(20))
+                            .foregroundStyle(Palette.orange)
                         ForEach(mails.prefix(6)) { mail in
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(alignment: .top, spacing: 6) {
                                     if mail.urgency == 3 {
                                         Image(systemName: "exclamationmark.circle.fill")
-                                            .foregroundStyle(Comic.red)
+                                            .foregroundStyle(Palette.red)
                                     }
                                     Text(mail.summary)
-                                        .font(.comic(14))
-                                        .foregroundStyle(Comic.ink)
+                                        .font(.bodyMedium(14))
+                                        .foregroundStyle(Palette.ink)
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                                 if !mail.action.isEmpty {
                                     Label(mail.action, systemImage: "arrow.right.circle.fill")
-                                        .font(.comic(12))
-                                        .foregroundStyle(Comic.red)
+                                        .font(.bodyMedium(12))
+                                        .foregroundStyle(Palette.red)
                                 }
-                                Text(mail.senderName.uppercased())
-                                    .font(.bangers(11))
-                                    .foregroundStyle(Comic.ink.opacity(0.5))
+                                Text(mail.senderName)
+                                    .font(.heading(11))
+                                    .foregroundStyle(Palette.ink.opacity(0.5))
                             }
                         }
                         if mails.count > 6 {
                             Text("+\(mails.count - 6) MORE")
-                                .font(.bangers(12))
-                                .foregroundStyle(Comic.ink.opacity(0.5))
+                                .font(.heading(12))
+                                .foregroundStyle(Palette.ink.opacity(0.5))
                         }
                     }
                 }

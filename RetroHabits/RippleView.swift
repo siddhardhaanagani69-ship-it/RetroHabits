@@ -41,41 +41,41 @@ struct RippleView: View {
     // MARK: Input
 
     private var inputPanel: some View {
-        ComicPanel(tilt: -0.3) {
+        Card {
             VStack(alignment: .leading, spacing: 10) {
-                Text("RIPPLE MODE")
-                    .font(.bangers(22))
-                    .foregroundStyle(Comic.red)
+                Text("Ripple Mode")
+                    .font(.heading(22))
+                    .foregroundStyle(Palette.red)
                 Text("Tell me what changed — or ask “what if…”. Tap the keyboard mic to say it.")
-                    .font(.comicLight(12))
-                    .foregroundStyle(Comic.ink.opacity(0.65))
+                    .font(.bodyRegular(12))
+                    .foregroundStyle(Palette.ink.opacity(0.65))
                     .fixedSize(horizontal: false, vertical: true)
                 TextField("My lab moved to Friday evening", text: $draft, axis: .vertical)
-                    .font(.comic(15))
-                    .foregroundStyle(Comic.ink)
+                    .font(.bodyMedium(15))
+                    .foregroundStyle(Palette.ink)
                     .lineLimit(1...3)
                     .padding(10)
-                    .background(Comic.paper)
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2))
+                    .background(Palette.paper)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.hairline, lineWidth: 1))
                 Button {
                     Task { await run() }
                 } label: {
                     Group {
-                        if isLoading { ProgressView().tint(.white) } else { Label("SEE THE RIPPLE", systemImage: "dot.radiowaves.right") }
+                        if isLoading { ProgressView().tint(.white) } else { Label("See the Ripple", systemImage: "dot.radiowaves.right") }
                     }
                     .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(ComicButtonStyle(fill: Comic.red, textColor: .white))
+                .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
                 .disabled(isLoading || draft.trimmingCharacters(in: .whitespaces).isEmpty)
 
                 if plannedHabits == 0 {
                     Text("Tip: give a habit a reminder time (HABITS → tap it) so Ripple can check your planned sessions too.")
-                        .font(.comicLight(11))
-                        .foregroundStyle(Comic.ink.opacity(0.55))
+                        .font(.bodyRegular(11))
+                        .foregroundStyle(Palette.ink.opacity(0.55))
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if let error {
-                    Text(error).font(.comic(13)).foregroundStyle(Comic.red)
+                    Text(error).font(.bodyMedium(13)).foregroundStyle(Palette.red)
                 }
             }
         }
@@ -91,20 +91,20 @@ struct RippleView: View {
             if let clarify = r.clarify {
                 connector(1)
                 node(1) {
-                    nodeCard(fill: Comic.yellow) {
-                        Text("NEED ONE MORE DETAIL").font(.bangers(16)).foregroundStyle(Comic.ink)
-                        Text(clarify).font(.comic(14)).foregroundStyle(Comic.ink)
+                    nodeCard(fill: Palette.yellow) {
+                        Text("Need one more detail").font(.heading(16)).foregroundStyle(Palette.ink)
+                        Text(clarify).font(.bodyMedium(14)).foregroundStyle(Palette.ink)
                     }
                 }
             } else if r.conflicts.isEmpty {
                 connector(1)
                 node(1) {
                     nodeCard {
-                        Text("NO CONFLICTS").font(.bangers(18)).foregroundStyle(Comic.blue)
+                        Text("No conflicts").font(.heading(18)).foregroundStyle(Palette.blue)
                         Text(r.change.kind == "cancel"
                              ? "That frees up time — nothing else needs to move."
                              : "Nothing in your calendar or planned habits overlaps.")
-                            .font(.comic(14)).foregroundStyle(Comic.ink)
+                            .font(.bodyMedium(14)).foregroundStyle(Palette.ink)
                     }
                 }
             } else {
@@ -119,23 +119,23 @@ struct RippleView: View {
     }
 
     private func changeNode(_ r: AssistantService.RippleResult) -> some View {
-        nodeCard(fill: r.hypothetical && !applied ? Comic.panel : Comic.yellow.opacity(0.5)) {
+        nodeCard(fill: r.hypothetical && !applied ? Palette.panel : Palette.yellow.opacity(0.5)) {
             HStack {
-                tag(r.hypothetical ? "WHAT IF" : "YOU SAID", r.hypothetical ? Comic.orange : Comic.blue)
-                if !applied { tag("HYPOTHETICAL", Comic.ink.opacity(0.55)) } else { tag("APPLIED", Comic.red) }
+                tag(r.hypothetical ? "What if" : "You said", r.hypothetical ? Palette.orange : Palette.blue)
+                if !applied { tag("Hypothetical", Palette.ink.opacity(0.55)) } else { tag("Applied", Palette.red) }
             }
-            Text(changeHeadline(r.change)).font(.bangers(20)).foregroundStyle(Comic.ink)
+            Text(changeHeadline(r.change)).font(.heading(20)).foregroundStyle(Palette.ink)
             if let previous = r.change.previousStart {
                 Text("Was \(Self.range(previous, r.change.previousEnd))")
-                    .font(.comicLight(12)).foregroundStyle(Comic.ink.opacity(0.6))
+                    .font(.bodyRegular(12)).foregroundStyle(Palette.ink.opacity(0.6))
             }
             ForEach(r.change.stated, id: \.self) { fact in
-                Label(fact, systemImage: "quote.bubble.fill").font(.comic(12)).foregroundStyle(Comic.ink)
+                Label(fact, systemImage: "quote.bubble.fill").font(.bodyMedium(12)).foregroundStyle(Palette.ink)
             }
             ForEach(r.change.assumptions, id: \.self) { assumption in
                 HStack(alignment: .top, spacing: 6) {
-                    tag("ASSUMED", Comic.orange)
-                    Text(assumption).font(.comic(12)).foregroundStyle(Comic.ink)
+                    tag("Assumed", Palette.orange)
+                    Text(assumption).font(.bodyMedium(12)).foregroundStyle(Palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -145,30 +145,30 @@ struct RippleView: View {
     private func conflictNode(_ c: AssistantService.RippleResult.Conflict) -> some View {
         nodeCard {
             HStack {
-                tag(c.kind == "plan" ? "YOUR PLAN" : "CALENDAR", c.kind == "plan" ? Comic.red : Comic.blue)
-                tag("OVERLAPS", Comic.ink.opacity(0.7))
+                tag(c.kind == "plan" ? "Your plan" : "Calendar", c.kind == "plan" ? Palette.red : Palette.blue)
+                tag("Overlaps", Palette.ink.opacity(0.7))
             }
-            Text(c.title.uppercased()).font(.bangers(18)).foregroundStyle(Comic.ink)
-            Text(Self.range(c.start, c.end)).font(.comic(13)).foregroundStyle(Comic.ink.opacity(0.7))
+            Text(c.title).font(.heading(18)).foregroundStyle(Palette.ink)
+            Text(Self.range(c.start, c.end)).font(.bodyMedium(13)).foregroundStyle(Palette.ink.opacity(0.7))
 
             if c.movable {
                 if c.options.isEmpty {
-                    Text("No free slot this week fits \(c.title).").font(.comic(12)).foregroundStyle(Comic.red)
+                    Text("No free slot this week fits \(c.title).").font(.bodyMedium(12)).foregroundStyle(Palette.red)
                 } else {
-                    Text("FREE SLOTS IN YOUR WEEK").font(.bangers(13)).foregroundStyle(Comic.ink.opacity(0.6))
+                    Text("Free slots this week").font(.heading(13)).foregroundStyle(Palette.ink.opacity(0.6))
                     FlowLayout(spacing: 6) {
                         ForEach(c.options, id: \.self) { option in
                             chip(Self.range(option.start, option.end), selected: choice[c.id] == option) {
                                 choice[c.id] = option
                             }
                         }
-                        chip("KEEP AS IS", selected: choice[c.id] == nil) { choice[c.id] = nil }
+                        chip("Keep as is", selected: choice[c.id] == nil) { choice[c.id] = nil }
                     }
                     .disabled(applied)
                 }
             } else {
                 Text("It's on your calendar, so the app won't move it — sort this one out with the organizer.")
-                    .font(.comicLight(12)).foregroundStyle(Comic.ink.opacity(0.7))
+                    .font(.bodyRegular(12)).foregroundStyle(Palette.ink.opacity(0.7))
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -177,37 +177,37 @@ struct RippleView: View {
     private func planNode(_ r: AssistantService.RippleResult) -> some View {
         let moves = r.conflicts.compactMap { c in choice[c.id].map { (c, $0) } }
         let fixed = r.conflicts.filter { !$0.movable }
-        return nodeCard(fill: Comic.yellow.opacity(applied ? 0.6 : 0.35)) {
-            Text(applied ? "PLAN UPDATED" : "REVISED PLAN").font(.bangers(20)).foregroundStyle(Comic.red)
+        return nodeCard(fill: Palette.yellow.opacity(applied ? 0.6 : 0.35)) {
+            Text(applied ? "Plan updated" : "Revised plan").font(.heading(20)).foregroundStyle(Palette.red)
             if moves.isEmpty {
-                Text("No planned sessions move.").font(.comic(13)).foregroundStyle(Comic.ink)
+                Text("No planned sessions move.").font(.bodyMedium(13)).foregroundStyle(Palette.ink)
             }
             ForEach(moves, id: \.0.id) { conflict, option in
                 Text("\(conflict.title): \(Self.short(conflict.start)) → \(Self.short(option.start))")
-                    .font(.comic(14)).foregroundStyle(Comic.ink)
+                    .font(.bodyMedium(14)).foregroundStyle(Palette.ink)
             }
             ForEach(fixed) { c in
                 Text("Still overlapping: \(c.title) (\(Self.short(c.start)))")
-                    .font(.comicLight(12)).foregroundStyle(Comic.ink.opacity(0.7))
+                    .font(.bodyRegular(12)).foregroundStyle(Palette.ink.opacity(0.7))
             }
             Text("Moves change your plan only — nothing is marked done.")
-                .font(.comicLight(11)).foregroundStyle(Comic.ink.opacity(0.55))
+                .font(.bodyRegular(11)).foregroundStyle(Palette.ink.opacity(0.55))
 
             if !applied {
                 HStack(spacing: 10) {
-                    Button { reject() } label: { Text("REJECT").frame(maxWidth: .infinity) }
-                        .buttonStyle(ComicButtonStyle(fill: .white))
-                    Button { Task { await accept(moves) } } label: { Text("ACCEPT").frame(maxWidth: .infinity) }
-                        .buttonStyle(ComicButtonStyle(fill: Comic.red, textColor: .white))
+                    Button { reject() } label: { Text("Reject").frame(maxWidth: .infinity) }
+                        .buttonStyle(FilledButtonStyle())
+                    Button { Task { await accept(moves) } } label: { Text("Accept").frame(maxWidth: .infinity) }
+                        .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
                         .disabled(moves.isEmpty)
                 }
             }
             if r.change.kind == "new", r.change.start != nil {
                 Button { addingToCalendar = true } label: {
-                    Label("ADD \(r.change.title.uppercased()) TO CALENDAR", systemImage: "calendar.badge.plus")
+                    Label("Add \(r.change.title) to Calendar", systemImage: "calendar.badge.plus")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(ComicButtonStyle(fill: Comic.blue, textColor: .white))
+                .buttonStyle(FilledButtonStyle(fill: Palette.blue, textColor: .white))
             }
         }
     }
@@ -261,29 +261,28 @@ struct RippleView: View {
 
     private func connector(_ index: Int) -> some View {
         VStack(spacing: 0) {
-            Rectangle().fill(Comic.ink).frame(width: 3, height: 16)
-            Image(systemName: "arrowtriangle.down.fill").font(.system(size: 10)).foregroundStyle(Comic.ink)
+            Rectangle().fill(Palette.ink).frame(width: 3, height: 16)
+            Image(systemName: "arrowtriangle.down.fill").font(.system(size: 10)).foregroundStyle(Palette.ink)
         }
         .padding(.leading, 26)
         .opacity(shown >= index ? 1 : 0)
     }
 
-    private func nodeCard<Content: View>(fill: Color = Comic.panel, @ViewBuilder _ content: () -> Content) -> some View {
+    private func nodeCard<Content: View>(fill: Color = Palette.panel, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 6) { content() }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10).fill(Comic.ink).offset(x: 3, y: 3)
                     RoundedRectangle(cornerRadius: 10).fill(fill)
-                    RoundedRectangle(cornerRadius: 10).stroke(Comic.ink, lineWidth: 2.5)
+                    RoundedRectangle(cornerRadius: 10).stroke(Palette.hairline, lineWidth: 1)
                 }
             )
     }
 
     private func tag(_ text: String, _ color: Color) -> some View {
         Text(text)
-            .font(.bangers(11))
+            .font(.heading(11))
             .foregroundStyle(.white)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
@@ -293,12 +292,12 @@ struct RippleView: View {
     private func chip(_ text: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(text)
-                .font(.comic(12))
-                .foregroundStyle(selected ? .white : Comic.ink)
+                .font(.bodyMedium(12))
+                .foregroundStyle(selected ? .white : Palette.ink)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Comic.red : Color.white))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 1.5))
+                .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Palette.red : Palette.panel))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.hairline, lineWidth: 1))
         }
         .buttonStyle(.plain)
     }

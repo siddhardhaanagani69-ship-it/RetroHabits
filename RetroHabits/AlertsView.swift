@@ -21,73 +21,61 @@ struct AlertsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if scheduler.authorizationDenied {
-                ComicPanel(fill: Comic.yellow) {
+                Card(fill: Palette.yellow) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("NOTIFICATIONS ARE OFF!")
-                            .font(.bangers(20))
-                            .foregroundStyle(Comic.red)
+                        Text("Notifications are off")
+                            .font(.heading(20))
+                            .foregroundStyle(Palette.red)
                         Text("Turn them on in iPhone Settings → RetroHabits → Notifications so alerts can reach you.")
-                            .font(.comic(13))
-                            .foregroundStyle(Comic.ink)
+                            .font(.bodyMedium(13))
+                            .foregroundStyle(Palette.ink)
                             .fixedSize(horizontal: false, vertical: true)
                         Button {
                             openSystemSettings()
                         } label: {
-                            Text("OPEN SETTINGS").frame(maxWidth: .infinity)
+                            Text("Open Settings").frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(ComicButtonStyle(fill: Comic.red, textColor: .white))
+                        .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
                     }
                 }
             }
 
             if scheduler.alerts.isEmpty {
-                ComicPanel(tilt: -0.8) {
+                Card {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("ALL QUIET…")
-                            .font(.bangers(24))
-                            .foregroundStyle(Comic.blue)
-                        Text("No alerts queued. Connect a source in SETUP, then refresh — deadlines and events get their own alerts automatically.")
-                            .font(.comic(14))
-                            .foregroundStyle(Comic.ink)
+                        Text("All quiet")
+                            .font(.heading(24))
+                            .foregroundStyle(Palette.blue)
+                        Text("No alerts queued. Connect a source in Setup, then refresh — deadlines and events get their own alerts automatically.")
+                            .font(.bodyMedium(14))
+                            .foregroundStyle(Palette.ink)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             } else {
-                ComicPanel(fill: Comic.yellow) {
+                Card(fill: Palette.yellow) {
                     HStack(spacing: 14) {
                         countBlock("\(count(of: .deadline))", "DEADLINE")
-                        Rectangle().fill(Comic.ink).frame(width: 2, height: 38)
+                        Divider().frame(height: 38)
                         countBlock("\(count(of: .event))", "EVENT")
-                        Rectangle().fill(Comic.ink).frame(width: 2, height: 38)
+                        Divider().frame(height: 38)
                         countBlock("\(count(of: .briefing) + count(of: .watch))", "DIGEST")
                     }
                     .frame(maxWidth: .infinity)
                 }
 
                 ForEach(groupedAlerts, id: \.day) { group in
-                    Text(dayLabel(group.day))
-                        .font(.bangers(22))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 5)
-                        .background(
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 6).fill(Comic.ink).offset(x: 3, y: 3)
-                                RoundedRectangle(cornerRadius: 6).fill(Comic.blue)
-                                RoundedRectangle(cornerRadius: 6).stroke(Comic.ink, lineWidth: 2)
-                            }
-                        )
-                        .padding(.top, 6)
+                    SectionHeader(text: dayLabel(group.day))
 
                     ForEach(Array(group.alerts.enumerated()), id: \.element.id) { index, alert in
-                        alertPanel(alert, tilt: index.isMultiple(of: 2) ? 0.6 : -0.6)
+                        alertPanel(alert)
                     }
                 }
             }
 
             Text("iOS doesn't let apps read other apps' notifications, so these are generated from your own Canvas and calendar data.")
-                .font(.comicLight(11))
-                .foregroundStyle(Comic.ink.opacity(0.5))
+                .font(.bodyRegular(11))
+                .foregroundStyle(Palette.ink.opacity(0.5))
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 8)
         }
@@ -96,33 +84,33 @@ struct AlertsSection: View {
 
     // MARK: Pieces
 
-    private func alertPanel(_ alert: ScheduledAlert, tilt: Double) -> some View {
-        ComicPanel(tilt: tilt) {
+    private func alertPanel(_ alert: ScheduledAlert) -> some View {
+        Card {
             HStack(alignment: .top, spacing: 12) {
                 VStack(spacing: 4) {
                     Image(systemName: alert.kind.symbol)
                         .font(.system(size: 16, weight: .black))
                         .foregroundStyle(color(for: alert.kind))
                     Text(Self.timeFormatter.string(from: alert.fireDate))
-                        .font(.bangers(13))
-                        .foregroundStyle(Comic.ink.opacity(0.7))
+                        .font(.heading(13))
+                        .foregroundStyle(Palette.ink.opacity(0.7))
                 }
                 .frame(width: 58)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(alert.kind.label)
-                        .font(.bangers(12))
+                        .font(.heading(12))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2)
                         .background(Capsule().fill(color(for: alert.kind)))
                     Text(alert.title)
-                        .font(.comic(15))
-                        .foregroundStyle(Comic.ink)
+                        .font(.bodyMedium(15))
+                        .foregroundStyle(Palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     Text(alert.body)
-                        .font(.comicLight(12))
-                        .foregroundStyle(Comic.ink.opacity(0.7))
+                        .font(.bodyRegular(12))
+                        .foregroundStyle(Palette.ink.opacity(0.7))
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
@@ -133,11 +121,11 @@ struct AlertsSection: View {
     private func countBlock(_ value: String, _ label: String) -> some View {
         VStack(spacing: 2) {
             Text(value)
-                .font(.bangers(28))
-                .foregroundStyle(Comic.red)
+                .font(.heading(28))
+                .foregroundStyle(Palette.red)
             Text(label)
-                .font(.bangers(12))
-                .foregroundStyle(Comic.ink.opacity(0.7))
+                .font(.heading(12))
+                .foregroundStyle(Palette.ink.opacity(0.7))
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
         }
@@ -146,10 +134,10 @@ struct AlertsSection: View {
 
     private func color(for kind: ScheduledAlert.Kind) -> Color {
         switch kind {
-        case .deadline: return Comic.red
-        case .event: return Comic.blue
-        case .briefing: return Comic.orange
-        case .watch: return Comic.ink.opacity(0.75)
+        case .deadline: return Palette.red
+        case .event: return Palette.blue
+        case .briefing: return Palette.orange
+        case .watch: return Palette.ink.opacity(0.75)
         }
     }
 
@@ -167,8 +155,8 @@ struct AlertsSection: View {
     }
 
     private func dayLabel(_ day: Date) -> String {
-        if Calendar.current.isDateInToday(day) { return "TODAY" }
-        if Calendar.current.isDateInTomorrow(day) { return "TOMORROW" }
+        if Calendar.current.isDateInToday(day) { return "Today" }
+        if Calendar.current.isDateInTomorrow(day) { return "Tomorrow" }
         return Self.dayFormatter.string(from: day).uppercased()
     }
 

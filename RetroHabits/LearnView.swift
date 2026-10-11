@@ -20,7 +20,7 @@ struct LearnView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .top) {
-                Comic.paper
+                Palette.paper
 
                 if displayed.isEmpty {
                     emptyState
@@ -32,7 +32,7 @@ struct LearnView: View {
                 topBar
             }
         }
-        .background(Comic.paper.ignoresSafeArea())
+        .background(Palette.paper.ignoresSafeArea())
         .task {
             let stale = store.lastRefreshed.map { Date().timeIntervalSince($0) > 3600 } ?? true
             if stale { await store.refresh() }
@@ -85,18 +85,18 @@ struct LearnView: View {
         VStack(spacing: 16) {
             Image(systemName: "bookmark.slash")
                 .font(.system(size: 40, weight: .black))
-                .foregroundStyle(Comic.ink.opacity(0.5))
-            Text("NOTHING HERE")
-                .font(.bangers(26))
-                .foregroundStyle(Comic.red)
+                .foregroundStyle(Palette.ink.opacity(0.5))
+            Text("Nothing here")
+                .font(.heading(26))
+                .foregroundStyle(Palette.red)
             Text(store.showSavedOnly
                  ? "You haven't saved any cards yet. Tap the bookmark on a card to keep it."
                  : "Turn a track back on to see cards.")
-                .font(.comic(14))
-                .foregroundStyle(Comic.ink)
+                .font(.bodyMedium(14))
+                .foregroundStyle(Palette.ink)
                 .multilineTextAlignment(.center)
-            Button("FILTERS") { showingFilters = true }
-                .buttonStyle(ComicButtonStyle())
+            Button("Filters") { showingFilters = true }
+                .buttonStyle(FilledButtonStyle())
         }
         .padding(32)
     }
@@ -105,28 +105,28 @@ struct LearnView: View {
 
     private var topBar: some View {
         HStack(spacing: 8) {
-            Text("LEARN")
-                .font(.bangers(22))
+            Text("Learn")
+                .font(.heading(22))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(Capsule().fill(Comic.red))
-                .overlay(Capsule().stroke(Comic.ink, lineWidth: 2))
+                .background(Capsule().fill(Palette.red))
+                .overlay(Capsule().stroke(Palette.hairline, lineWidth: 1))
 
             if store.isLoading {
-                ProgressView().tint(Comic.ink).scaleEffect(0.8)
+                ProgressView().tint(Palette.ink).scaleEffect(0.8)
             }
 
             Spacer(minLength: 4)
 
             if store.newCardCount > 0 {
                 Text("+\(store.newCardCount)")
-                    .font(.bangers(14))
-                    .foregroundStyle(Comic.ink)
+                    .font(.heading(14))
+                    .foregroundStyle(Palette.ink)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(Capsule().fill(Comic.yellow))
-                    .overlay(Capsule().stroke(Comic.ink, lineWidth: 2))
+                    .background(Capsule().fill(Palette.yellow))
+                    .overlay(Capsule().stroke(Palette.hairline, lineWidth: 1))
             }
 
             circleButton("arrow.clockwise", tint: .white) {
@@ -137,7 +137,7 @@ struct LearnView: View {
             }
 
             circleButton("line.3.horizontal.decrease",
-                         tint: store.showSavedOnly ? Comic.yellow : .white) {
+                         tint: store.showSavedOnly ? Palette.yellow : .white) {
                 showingFilters = true
             }
         }
@@ -149,10 +149,10 @@ struct LearnView: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 14, weight: .black))
-                .foregroundStyle(Comic.ink)
+                .foregroundStyle(Palette.ink)
                 .frame(width: 34, height: 34)
                 .background(Circle().fill(tint))
-                .overlay(Circle().stroke(Comic.ink, lineWidth: 2))
+                .overlay(Circle().stroke(Palette.hairline, lineWidth: 1))
         }
         .buttonStyle(.plain)
     }
@@ -204,36 +204,36 @@ struct LearnCardView: View {
             // the floating top bar.
             HStack(spacing: 6) {
                 Label(card.track.title, systemImage: card.track.symbol)
-                    .font(.bangers(14))
+                    .font(.heading(14))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 9)
                     .padding(.vertical, 4)
                     .background(Capsule().fill(card.track.color))
-                    .overlay(Capsule().stroke(Comic.ink, lineWidth: 2))
+                    .overlay(Capsule().stroke(Palette.hairline, lineWidth: 1))
 
                 if let age = card.ageText {
                     Text(age)
-                        .font(.bangers(12))
-                        .foregroundStyle(Comic.ink)
+                        .font(.heading(12))
+                        .foregroundStyle(Palette.ink)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Capsule().fill(Comic.yellow))
-                        .overlay(Capsule().stroke(Comic.ink, lineWidth: 2))
+                        .background(Capsule().fill(Palette.yellow))
+                        .overlay(Capsule().stroke(Palette.hairline, lineWidth: 1))
                 }
 
                 if store.isSeen(card) {
                     Image(systemName: "checkmark")
                         .font(.system(size: 10, weight: .black))
-                        .foregroundStyle(Comic.ink)
+                        .foregroundStyle(Palette.ink)
                         .padding(6)
                         .background(Circle().fill(.white))
-                        .overlay(Circle().stroke(Comic.ink, lineWidth: 2))
+                        .overlay(Circle().stroke(Palette.hairline, lineWidth: 1))
                 }
             }
             .padding(.leading, 14)
             .padding(.bottom, 10)
         }
-        .overlay(Rectangle().frame(height: 3).foregroundStyle(Comic.ink), alignment: .bottom)
+        .overlay(Rectangle().frame(height: 3).foregroundStyle(Palette.ink), alignment: .bottom)
     }
 
     // MARK: Content
@@ -241,21 +241,21 @@ struct LearnCardView: View {
     private var contentPanel: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 12) {
-                Text(card.title.uppercased())
-                    .font(.bangers(titleSize))
-                    .foregroundStyle(Comic.ink)
+                Text(card.title)
+                    .font(.heading(titleSize))
+                    .foregroundStyle(Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     .lineLimit(4)
                     .minimumScaleFactor(0.65)
 
                 Text(card.hook)
-                    .font(.comic(14))
+                    .font(.bodyMedium(14))
                     .foregroundStyle(card.track.color)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(card.body)
-                    .font(.comicLight(15))
-                    .foregroundStyle(Comic.ink.opacity(0.85))
+                    .font(.bodyRegular(15))
+                    .foregroundStyle(Palette.ink.opacity(0.85))
                     .lineSpacing(4)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -263,15 +263,15 @@ struct LearnCardView: View {
                     FlowLayout(spacing: 6) {
                         ForEach(card.terms, id: \.self) { term in
                             Text(term)
-                                .font(.comic(12))
-                                .foregroundStyle(Comic.ink)
+                                .font(.bodyMedium(12))
+                                .foregroundStyle(Palette.ink)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 4).fill(Comic.yellow.opacity(0.6))
+                                    RoundedRectangle(cornerRadius: 4).fill(Palette.yellow.opacity(0.6))
                                 )
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 4).stroke(Comic.ink, lineWidth: 1.5)
+                                    RoundedRectangle(cornerRadius: 4).stroke(Palette.hairline, lineWidth: 1)
                                 )
                         }
                     }
@@ -281,22 +281,22 @@ struct LearnCardView: View {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "bolt.fill")
                             .font(.system(size: 13, weight: .black))
-                            .foregroundStyle(Comic.red)
+                            .foregroundStyle(Palette.red)
                         Text(card.action)
-                            .font(.comic(13))
-                            .foregroundStyle(Comic.ink)
+                            .font(.bodyMedium(13))
+                            .foregroundStyle(Palette.ink)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Comic.yellow.opacity(0.45)))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Comic.ink, lineWidth: 2))
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Palette.yellow.opacity(0.45)))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.hairline, lineWidth: 1))
                 }
 
                 if let source = card.sourceLabel {
-                    Text(source.uppercased())
-                        .font(.bangers(12))
-                        .foregroundStyle(Comic.ink.opacity(0.5))
+                    Text(source)
+                        .font(.heading(12))
+                        .foregroundStyle(Palette.ink.opacity(0.5))
                 }
 
                 Color.clear.frame(height: 10)
@@ -333,21 +333,21 @@ struct LearnCardView: View {
                     .font(.system(size: 15, weight: .black))
                     .frame(width: 40, height: 40)
             }
-            .buttonStyle(ComicButtonStyle(fill: store.isSaved(card) ? Comic.yellow : .white))
+            .buttonStyle(FilledButtonStyle(fill: store.isSaved(card) ? Palette.yellow : .white))
 
             if let link = card.link {
                 Button {
                     openURL(link)
                 } label: {
-                    Label("OPEN SOURCE", systemImage: "arrow.up.right")
+                    Label("Open Source", systemImage: "arrow.up.right")
                         .lineLimit(1)
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(ComicButtonStyle(fill: card.track.color, textColor: .white))
+                .buttonStyle(FilledButtonStyle(fill: card.track.color, textColor: .white))
             } else {
-                Text("SWIPE UP ↑")
-                    .font(.bangers(16))
-                    .foregroundStyle(Comic.ink.opacity(0.45))
+                Text("Swipe up ↑")
+                    .font(.heading(16))
+                    .foregroundStyle(Palette.ink.opacity(0.45))
                     .frame(maxWidth: .infinity)
             }
         }
@@ -356,8 +356,8 @@ struct LearnCardView: View {
         .frame(maxWidth: .infinity)
         .background(
             Rectangle()
-                .fill(Comic.paper)
-                .overlay(Rectangle().frame(height: 2.5).foregroundStyle(Comic.ink), alignment: .top)
+                .fill(Palette.paper)
+                .overlay(Rectangle().frame(height: 2.5).foregroundStyle(Palette.ink), alignment: .top)
         )
     }
 }
@@ -370,27 +370,26 @@ struct EndOfFeedView: View {
     var body: some View {
         VStack(spacing: 16) {
             Spacer()
-            Text("THAT'S THE LOT!")
-                .font(.bangers(32))
-                .foregroundStyle(Comic.red)
-                .shadow(color: Comic.ink, radius: 0, x: 2, y: 2)
+            Text("That's everything")
+                .font(.heading(32))
+                .foregroundStyle(Palette.red)
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
             Text("You've studied \(store.studiedCount) cards.")
-                .font(.comic(16))
-                .foregroundStyle(Comic.ink)
+                .font(.bodyMedium(16))
+                .foregroundStyle(Palette.ink)
             Button {
                 Task { await store.refresh() }
             } label: {
-                Label("PULL IN NEW PAPERS", systemImage: "arrow.clockwise")
+                Label("Pull in new papers", systemImage: "arrow.clockwise")
                     .lineLimit(1)
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(ComicButtonStyle(fill: Comic.red, textColor: .white))
+            .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
             .padding(.horizontal, 30)
             Text("Fresh research lands on arXiv every weekday.")
-                .font(.comicLight(12))
-                .foregroundStyle(Comic.ink.opacity(0.6))
+                .font(.bodyRegular(12))
+                .foregroundStyle(Palette.ink.opacity(0.6))
                 .multilineTextAlignment(.center)
             Spacer()
         }
@@ -407,38 +406,38 @@ struct LearnFilterSheet: View {
 
     var body: some View {
         ZStack {
-            Comic.paper.ignoresSafeArea()
+            Palette.paper.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    ComicHeader(title: "YOUR TRACKS", subtitle: "Pick what shows up in the feed.")
+                    ScreenHeader(title: "Your tracks", subtitle: "Pick what shows up in the feed.")
                         .padding(.top, 20)
 
                     ForEach(LearnTrack.allCases) { track in
                         trackRow(track)
                     }
 
-                    ComicPanel {
+                    Card {
                         Toggle(isOn: $store.showSavedOnly) {
-                            Text("SAVED ONLY")
-                                .font(.bangers(18))
-                                .foregroundStyle(Comic.blue)
+                            Text("Saved only")
+                                .font(.heading(18))
+                                .foregroundStyle(Palette.blue)
                         }
-                        .tint(Comic.red)
+                        .tint(Palette.red)
                     }
 
                     Button {
                         store.resetProgress()
                     } label: {
-                        Text("RESET READ HISTORY").frame(maxWidth: .infinity)
+                        Text("Reset read history").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(ComicButtonStyle(fill: .white))
+                    .buttonStyle(FilledButtonStyle())
 
                     Button {
                         dismiss()
                     } label: {
-                        Text("DONE").frame(maxWidth: .infinity)
+                        Text("Done").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(ComicButtonStyle(fill: Comic.red, textColor: .white))
+                    .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
                     .padding(.bottom, 30)
                 }
                 .padding(.horizontal, 16)
@@ -459,7 +458,7 @@ struct LearnFilterSheet: View {
                 }
             }
         } label: {
-            ComicPanel(fill: isOn ? track.color.opacity(0.22) : .white) {
+            Card(fill: isOn ? track.color.opacity(0.22) : .white) {
                 HStack(spacing: 12) {
                     Image(systemName: track.symbol)
                         .font(.system(size: 20, weight: .black))
@@ -467,18 +466,18 @@ struct LearnFilterSheet: View {
                         .frame(width: 30)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(track.title)
-                            .font(.bangers(20))
-                            .foregroundStyle(Comic.ink)
-                        ComicProgressBar(progress: store.progress(for: track))
+                            .font(.heading(20))
+                            .foregroundStyle(Palette.ink)
+                        ProgressCapsule(progress: store.progress(for: track))
                             .frame(height: 12)
                         Text("\(Int(store.progress(for: track) * 100))% of the course read")
-                            .font(.comicLight(11))
-                            .foregroundStyle(Comic.ink.opacity(0.6))
+                            .font(.bodyRegular(11))
+                            .foregroundStyle(Palette.ink.opacity(0.6))
                     }
                     Spacer(minLength: 4)
                     Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 20, weight: .black))
-                        .foregroundStyle(isOn ? track.color : Comic.ink.opacity(0.3))
+                        .foregroundStyle(isOn ? track.color : Palette.ink.opacity(0.3))
                 }
             }
         }
