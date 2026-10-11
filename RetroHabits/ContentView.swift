@@ -48,6 +48,8 @@ struct ContentView: View {
             ForEach(AppTab.dock, id: \.self) { tab in
                 screen(for: tab)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    // Room to scroll the last item clear of the + button.
+                    .contentMargins(.bottom, tab == .ask ? 0 : 64, for: .scrollContent)
                     .tag(tab)
             }
         }
@@ -61,12 +63,16 @@ struct ContentView: View {
         }
         .safeAreaInset(edge: .bottom) {
             if !keyboardShown {
-                HStack(spacing: 10) {
-                    Dock(selection: $tab)
-                    plusButton
-                }
+                Dock(selection: $tab)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 4)
+            }
+        }
+        // Floats just above the dock (62 pt tall, 4 pt off the bottom) without taking a
+        // row. Not on Ask, where the message field sits in that spot.
+        .overlay(alignment: .bottomTrailing) {
+            if tab != .ask && !keyboardShown {
+                plusButton.padding(.trailing, 16).padding(.bottom, 76)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in keyboardShown = true }
@@ -84,7 +90,7 @@ struct ContentView: View {
         }
     }
 
-    /// Beside the dock: Stats and Setup.
+    /// Above the dock, on the right: Stats and Setup.
     private var plusButton: some View {
         Menu {
             Button("Stats", systemImage: AppTab.stats.icon) { sheet = .stats }
