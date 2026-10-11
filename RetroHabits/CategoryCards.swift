@@ -35,7 +35,7 @@ struct CategoryCards: View {
                 .monospacedDigit()
             Text("\(share.formatted(.percent.precision(.fractionLength(0)))) of this week")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Palette.muted)
         }
         .padding(18)
         .frame(width: 220, alignment: .leading)

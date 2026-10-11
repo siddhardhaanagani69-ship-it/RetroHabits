@@ -22,7 +22,7 @@ struct SpendingList: View {
             }
             Text("Press and hold an entry to delete it.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Palette.muted)
                 .frame(maxWidth: .infinity)
         }
     }
@@ -39,7 +39,7 @@ struct SpendingList: View {
                 Text([entry.category.capitalized, entry.ts.formatted(.dateTime.weekday().hour().minute()),
                       entry.source == "receipt" ? "receipt" : nil].compactMap { $0 }.joined(separator: " · "))
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Palette.muted)
             }
             Spacer()
             Text(BudgetCard.money(entry.amount))

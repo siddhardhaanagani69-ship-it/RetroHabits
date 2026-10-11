@@ -69,7 +69,7 @@ struct InboxPanel: View {
                 }
                 Text(mail.senderName)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Palette.muted)
             }
             Spacer(minLength: 4)
             Image(systemName: "chevron.right")
@@ -106,7 +106,7 @@ struct MailDetail: View {
                 }
                 if !mail.excerpt.isEmpty {
                     Section("Message") {
-                        Text(mail.excerpt).font(.callout).foregroundStyle(.secondary)
+                        Text(mail.excerpt).font(.callout).foregroundStyle(Palette.muted)
                     }
                 }
                 if let link = mail.link {

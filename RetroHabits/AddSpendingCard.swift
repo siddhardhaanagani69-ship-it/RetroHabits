@@ -51,7 +51,7 @@ struct AddSpendingCard: View {
                 if let message {
                     Text(message)
                         .font(.subheadline)
-                        .foregroundStyle(messageIsError ? Palette.red : .secondary)
+                        .foregroundStyle(messageIsError ? Palette.red : Palette.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if let error = dictation.error {

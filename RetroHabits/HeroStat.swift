@@ -17,7 +17,7 @@ struct HeroStat: View {
             Text(label.uppercased())
                 .font(.footnote.weight(.semibold))
                 .tracking(1.2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Palette.muted)
             Text(value)
                 .font(.system(size: valueSize, weight: .semibold))
                 .monospacedDigit()
@@ -27,9 +27,9 @@ struct HeroStat: View {
             if let pill { pill }
             if let progress {
                 HStack(spacing: 12) {
-                    Text(low).font(.subheadline).foregroundStyle(.secondary)
+                    Text(low).font(.subheadline).foregroundStyle(Palette.muted)
                     ProgressCapsule(progress: progress)
-                    Text(high).font(.subheadline).foregroundStyle(.secondary)
+                    Text(high).font(.subheadline).foregroundStyle(Palette.muted)
                 }
                 .padding(.top, 14)
                 .padding(.horizontal, 8)

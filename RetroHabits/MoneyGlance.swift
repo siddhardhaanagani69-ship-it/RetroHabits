@@ -20,7 +20,7 @@ struct MoneyGlance: View {
                         }
                         Text("Spent \(BudgetCard.money(s.spent))" + (s.budget.map { " of \(BudgetCard.money($0))" } ?? " this week"))
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Palette.muted)
                     }
                     Spacer()
                 }

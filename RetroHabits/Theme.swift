@@ -5,7 +5,9 @@ import SwiftUI
 enum Palette {
     static let paper    = Color("Paper")
     static let panel    = Color("Panel")
-    static let ink      = Color.primary
+    static let ink      = Color("Ink")
+    /// Secondary text.
+    static let muted    = Color("Muted")
     static let hairline = Color("Hairline")
     static let fill     = Color(.tertiarySystemFill)
     static let red      = Color(.systemRed)

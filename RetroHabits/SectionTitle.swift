@@ -9,7 +9,7 @@ struct SectionTitle: View {
         Label {
             Text(title).font(.title3.bold()).foregroundStyle(Palette.ink)
         } icon: {
-            Image(systemName: symbol).foregroundStyle(.secondary)
+            Image(systemName: symbol).foregroundStyle(Palette.muted)
         }
         .padding(.top, 14)
         .accessibilityAddTraits(.isHeader)

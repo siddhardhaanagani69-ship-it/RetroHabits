@@ -25,7 +25,7 @@ struct Timeline: View {
                     }
                     VStack(alignment: .leading, spacing: 3) {
                         Text(step.title).font(.body).foregroundStyle(Palette.ink)
-                        Text(step.detail).font(.subheadline).foregroundStyle(.secondary)
+                        Text(step.detail).font(.subheadline).foregroundStyle(Palette.muted)
                     }
                     .padding(.top, 8)
                     .padding(.bottom, 14)
@@ -54,7 +54,7 @@ struct Timeline: View {
         case .later:
             Image(systemName: "clock")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Palette.muted)
                 .frame(width: 40, height: 40)
                 .overlay(Circle().strokeBorder(Palette.hairline, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
         }

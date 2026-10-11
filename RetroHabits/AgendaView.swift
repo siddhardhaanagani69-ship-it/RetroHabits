@@ -158,7 +158,7 @@ struct AgendaView: View {
             Card {
                 Text(Calendar.current.isDateInToday(selectedDay) ? "Nothing planned today. Enjoy it." : "Nothing planned for this day.")
                     .font(.bodyMedium(14))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Palette.muted)
             }
         }
 
@@ -188,11 +188,11 @@ struct AgendaView: View {
                             Text(habit.name)
                                 .font(.bodyMedium(15))
                                 .foregroundStyle(Palette.ink)
-                                .strikethrough(done, color: .secondary)
+                                .strikethrough(done, color: Palette.muted)
                             Spacer()
                             Text(done ? "Done" : plannedTime(habit, on: selectedDay))
                                 .font(.subheadline)
-                                .foregroundStyle(done ? Palette.accent : .secondary)
+                                .foregroundStyle(done ? Palette.accent : Palette.muted)
                         }
                     }
                 }
@@ -490,7 +490,7 @@ struct DayStrip: View {
                         VStack(spacing: 4) {
                             Text(Self.weekday.string(from: day))
                                 .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Palette.muted)
                             Text("\(Calendar.current.component(.day, from: day))")
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundStyle(isSelected ? .white : (isToday ? Palette.accent : Palette.ink))

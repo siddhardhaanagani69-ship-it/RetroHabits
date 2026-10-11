@@ -49,7 +49,7 @@ struct HabitsView: View {
                         Card {
                             Text("Add your classes or work shifts once — they repeat every week and remind you before they start.")
                                 .font(.bodyMedium(14))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Palette.muted)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -84,7 +84,7 @@ struct HabitsView: View {
 
                     Text("Tap a circle to check off today · tap a name to edit")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Palette.muted)
                         .frame(maxWidth: .infinity)
                 }
                 .padding(.horizontal, 16)
@@ -159,13 +159,13 @@ struct HabitsView: View {
                             Text(habit.name)
                                 .font(.bodyMedium(16))
                                 .foregroundStyle(Palette.ink)
-                                .strikethrough(isDone, color: .secondary)
+                                .strikethrough(isDone, color: Palette.muted)
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)
                             Text(isDone ? "Done today" + (streak > 1 ? " · \(streak)-day streak 🔥" : "")
                                  : streak > 0 ? "\(streak)-day streak 🔥" : "Not done yet today")
                                 .font(.subheadline)
-                                .foregroundStyle(isDone || streak > 0 ? Palette.red : .secondary)
+                                .foregroundStyle(isDone || streak > 0 ? Palette.red : Palette.muted)
                         }
                         Spacer(minLength: 4)
                         Image(systemName: "chevron.right")

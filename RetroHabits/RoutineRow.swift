@@ -19,11 +19,11 @@ struct RoutineRow: View {
                         .multilineTextAlignment(.leading)
                     Text(detail)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Palette.muted)
                     if let reminder {
                         Label(reminder, systemImage: "bell.fill")
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Palette.muted)
                     }
                 }
                 Spacer(minLength: 4)

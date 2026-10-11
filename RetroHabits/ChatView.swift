@@ -33,8 +33,8 @@ struct ChatView: View {
                         if turns.isEmpty {
                             Card {
                                 Text("Try: \"I'm stressed about my database class — what should I focus on this week?\"")
-                                    .font(.bodyMedium(14))
-                                    .foregroundStyle(Palette.ink)
+                                    .font(.bodyRegular(14))
+                                    .foregroundStyle(Palette.muted)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
@@ -134,7 +134,7 @@ struct ChatView: View {
                 Image(systemName: "paperplane.fill")
                     .font(.system(size: 16, weight: .black))
             }
-            .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
+            .buttonStyle(FilledButtonStyle(fill: Palette.accent, textColor: .white))
             .disabled(isSending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .accessibilityLabel("Send")
         }

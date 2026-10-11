@@ -13,7 +13,7 @@ struct SpendingTrendCard: View {
                 if money.trend.isEmpty {
                     Text("Your weekly spending shows up here as you log it.")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Palette.muted)
                 } else {
                     Chart(money.trend) { point in
                         BarMark(

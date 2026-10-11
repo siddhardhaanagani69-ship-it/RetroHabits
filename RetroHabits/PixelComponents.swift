@@ -44,7 +44,7 @@ struct ScreenHeader: View {
             if let subtitle {
                 Text(subtitle)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Palette.muted)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -59,7 +59,7 @@ struct SectionHeader: View {
     var body: some View {
         Text(text.uppercased())
             .font(.footnote.weight(.semibold))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Palette.muted)
             .padding(.top, 10)
             .padding(.leading, 4)
     }

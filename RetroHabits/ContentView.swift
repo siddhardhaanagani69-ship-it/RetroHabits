@@ -58,7 +58,8 @@ struct ContentView: View {
             }
         }
         .onChange(of: tab) { old, _ in previousTab = old }
-        .overlay(alignment: .bottomTrailing) { plusButton }
+        // Not on Ask, where it would sit on top of the message field.
+        .overlay(alignment: .bottomTrailing) { if tab != .ask { plusButton } }
         .sheet(item: $sheet) { page in
             NavigationStack {
                 screen(for: page)
@@ -72,10 +73,9 @@ struct ContentView: View {
         }
     }
 
-    /// Floating above the dock: Learn, Stats and Setup.
+    /// Floating above the dock: Stats and Setup.
     private var plusButton: some View {
         Menu {
-            Button("Learn", systemImage: AppTab.learn.icon) { tab = .learn }
             Button("Stats", systemImage: AppTab.stats.icon) { sheet = .stats }
             Button("Setup", systemImage: AppTab.settings.icon) { sheet = .settings }
         } label: {
@@ -84,9 +84,8 @@ struct ContentView: View {
                 .foregroundStyle(.white)
                 .frame(width: 56, height: 56)
                 .background(Circle().fill(Palette.accent))
-                .shadow(color: Palette.accent.opacity(0.45), radius: 12, y: 4)
         }
-        .accessibilityLabel("More: Learn, Stats, Setup")
+        .accessibilityLabel("More: Stats, Setup")
         .padding(.trailing, 20)
         .padding(.bottom, 72)   // sits just above the dock
     }
