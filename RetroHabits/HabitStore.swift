@@ -63,6 +63,8 @@ final class HabitStore: ObservableObject {
         } else {
             habits[index].completedDays.insert(key)
         }
+        // Done today silences today's reminder; undoing it brings the reminder back.
+        scheduleReminders(for: habits[index])
     }
 
     // MARK: Derived
@@ -117,10 +119,18 @@ final class HabitStore: ObservableObject {
 
         for weekday in habit.scheduledWeekdays {
             let components = DateComponents(hour: hour, minute: minute, weekday: weekday)
-            // A repeating trigger can't skip one week, so if the next occurrence was
-            // moved, leave it off until that day passes (refreshReminders restores it).
+            // A repeating trigger can't skip one week. If the next occurrence was moved,
+            // or is later today and the habit is already done, leave the repeating one off,
+            // book the following week once, and let refreshReminders restore it later.
             if let next = calendar.nextDate(after: now, matching: components, matchingPolicy: .nextTime),
-               moves[Habit.dayKey(for: next)] != nil { continue }
+               moves[Habit.dayKey(for: next)] != nil
+                || (calendar.isDateInToday(next) && habit.isCompleted(on: now)) {
+                if let following = calendar.date(byAdding: .day, value: 7, to: next) {
+                    add("habit-\(habit.id.uuidString)-\(weekday)-next",
+                        calendar.dateComponents([.year, .month, .day, .hour, .minute], from: following), repeats: false)
+                }
+                continue
+            }
             add("habit-\(habit.id.uuidString)-\(weekday)", components, repeats: true)
         }
         for (day, start) in moves where start > now {
@@ -130,7 +140,7 @@ final class HabitStore: ObservableObject {
     }
 
     private func cancelReminders(for habit: Habit) {
-        let ids = (1...7).map { "habit-\(habit.id.uuidString)-\($0)" }
+        let ids = (1...7).flatMap { ["habit-\(habit.id.uuidString)-\($0)", "habit-\(habit.id.uuidString)-\($0)-next"] }
             + (habit.moves ?? [:]).keys.map { "habit-\(habit.id.uuidString)-move-\($0)" }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
     }
