@@ -16,6 +16,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>AssistantToken</key>
+	<string>$(ASSISTANT_TOKEN)</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Snap a campus event flyer so RetroHabits can check it against your schedule.</string>
 	<key>NSMicrophoneUsageDescription</key>

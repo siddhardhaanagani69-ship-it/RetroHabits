@@ -36,8 +36,13 @@ enum AssistantService {
     }
 
     /// Shared secret the server checks (API_TOKEN in backend/.env). Kept in the Keychain.
+    /// A token entered in Setup wins; otherwise the one baked in at build time
+    /// (`xcodebuild … ASSISTANT_TOKEN=…`, read from backend/.env, never committed).
     static var token: String {
-        get { Keychain.data(forKey: "backend_token").flatMap { String(data: $0, encoding: .utf8) } ?? "" }
+        get {
+            let saved = Keychain.data(forKey: "backend_token").flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            return saved.isEmpty ? (Bundle.main.object(forInfoDictionaryKey: "AssistantToken") as? String ?? "") : saved
+        }
         set {
             let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.isEmpty { Keychain.delete(forKey: "backend_token") }

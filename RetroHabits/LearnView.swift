@@ -122,14 +122,14 @@ struct LearnView: View {
             if store.newCardCount > 0 {
                 Text("+\(store.newCardCount)")
                     .font(.heading(14))
-                    .foregroundStyle(Palette.ink)
+                    .foregroundStyle(.black)   // yellow stays bright in dark mode
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
                     .background(Capsule().fill(Palette.yellow))
                     .overlay(Capsule().stroke(Palette.hairline, lineWidth: 1))
             }
 
-            circleButton("arrow.clockwise", tint: .white) {
+            circleButton("arrow.clockwise", tint: Palette.panel) {
                 Task {
                     await store.refresh()
                     resyncOrder()
@@ -137,7 +137,7 @@ struct LearnView: View {
             }
 
             circleButton("line.3.horizontal.decrease",
-                         tint: store.showSavedOnly ? Palette.yellow : .white) {
+                         tint: store.showSavedOnly ? Palette.yellow : Palette.panel) {
                 showingFilters = true
             }
         }
@@ -149,7 +149,7 @@ struct LearnView: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 14, weight: .black))
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(tint == Palette.panel ? Palette.ink : Color.black)
                 .frame(width: 34, height: 34)
                 .background(Circle().fill(tint))
                 .overlay(Circle().stroke(Palette.hairline, lineWidth: 1))
@@ -214,7 +214,7 @@ struct LearnCardView: View {
                 if let age = card.ageText {
                     Text(age)
                         .font(.heading(12))
-                        .foregroundStyle(Palette.ink)
+                        .foregroundStyle(.black)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Capsule().fill(Palette.yellow))
@@ -226,7 +226,7 @@ struct LearnCardView: View {
                         .font(.system(size: 10, weight: .black))
                         .foregroundStyle(Palette.ink)
                         .padding(6)
-                        .background(Circle().fill(.white))
+                        .background(Circle().fill(Palette.panel))
                         .overlay(Circle().stroke(Palette.hairline, lineWidth: 1))
                 }
             }
@@ -333,7 +333,7 @@ struct LearnCardView: View {
                     .font(.system(size: 15, weight: .black))
                     .frame(width: 40, height: 40)
             }
-            .buttonStyle(FilledButtonStyle(fill: store.isSaved(card) ? Palette.yellow : .white))
+            .buttonStyle(FilledButtonStyle(fill: store.isSaved(card) ? Palette.yellow : Palette.panel))
 
             if let link = card.link {
                 Button {
@@ -458,7 +458,7 @@ struct LearnFilterSheet: View {
                 }
             }
         } label: {
-            Card(fill: isOn ? track.color.opacity(0.22) : .white) {
+            Card(fill: isOn ? track.color.opacity(0.22) : Palette.panel) {
                 HStack(spacing: 12) {
                     Image(systemName: track.symbol)
                         .font(.system(size: 20, weight: .black))

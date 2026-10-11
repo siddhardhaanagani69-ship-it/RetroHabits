@@ -37,7 +37,6 @@ struct ContentView: View {
                     .tag(tab)
             }
         }
-        .preferredColorScheme(.light)
     }
 
     @ViewBuilder

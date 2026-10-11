@@ -7,7 +7,8 @@ struct RecallPanel: View {
     @State private var inspecting = false
 
     var body: some View {
-        Group {
+        // A VStack, not a Group: a Group with no content has no views to run .task on.
+        VStack(spacing: 0) {
             if let recall, let day = recall.day {
                 Card(fill: Palette.yellow) {
                     VStack(alignment: .leading, spacing: 6) {

@@ -7,7 +7,8 @@ struct InboxPanel: View {
     @State private var mails: [AssistantService.MailBrief] = []
 
     var body: some View {
-        Group {
+        // A VStack, not a Group: a Group with no content has no views to run .task on.
+        VStack(spacing: 0) {
             if !mails.isEmpty {
                 Card {
                     VStack(alignment: .leading, spacing: 10) {

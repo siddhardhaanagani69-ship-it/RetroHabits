@@ -119,7 +119,7 @@ struct RippleView: View {
     }
 
     private func changeNode(_ r: AssistantService.RippleResult) -> some View {
-        nodeCard(fill: r.hypothetical && !applied ? Palette.panel : Palette.yellow.opacity(0.5)) {
+        nodeCard(fill: r.hypothetical && !applied ? Palette.panel : Palette.yellow) {
             HStack {
                 tag(r.hypothetical ? "What if" : "You said", r.hypothetical ? Palette.orange : Palette.blue)
                 if !applied { tag("Hypothetical", Palette.ink.opacity(0.55)) } else { tag("Applied", Palette.red) }
@@ -177,7 +177,7 @@ struct RippleView: View {
     private func planNode(_ r: AssistantService.RippleResult) -> some View {
         let moves = r.conflicts.compactMap { c in choice[c.id].map { (c, $0) } }
         let fixed = r.conflicts.filter { !$0.movable }
-        return nodeCard(fill: Palette.yellow.opacity(applied ? 0.6 : 0.35)) {
+        return nodeCard(fill: applied ? Palette.blue : Palette.yellow) {
             Text(applied ? "Plan updated" : "Revised plan").font(.heading(20)).foregroundStyle(Palette.red)
             if moves.isEmpty {
                 Text("No planned sessions move.").font(.bodyMedium(13)).foregroundStyle(Palette.ink)
@@ -269,15 +269,8 @@ struct RippleView: View {
     }
 
     private func nodeCard<Content: View>(fill: Color = Palette.panel, @ViewBuilder _ content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) { content() }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10).fill(fill)
-                    RoundedRectangle(cornerRadius: 10).stroke(Palette.hairline, lineWidth: 1)
-                }
-            )
+        // Same card as everywhere else: a tint on the adaptive card color reads in dark mode too.
+        Card(fill: fill) { VStack(alignment: .leading, spacing: 6) { content() } }
     }
 
     private func tag(_ text: String, _ color: Color) -> some View {
