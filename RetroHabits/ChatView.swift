@@ -80,6 +80,15 @@ struct ChatView: View {
             inputBar
         }
         .sheet(isPresented: $composing) { composer }
+        .onAppear {
+            // You paused: send what was heard, as if you'd tapped Stop.
+            dictation.onAutoStop = { heard in
+                guard !heard.isEmpty else { return }
+                draft = heard
+                Task { await send(spoken: true) }
+            }
+        }
+        .onDisappear { _ = dictation.stop() }   // swiped to another tab
         .sheet(item: $inspecting) { turn in
             MemoryInspector(title: "What I drew on for that answer.", memories: turn.memories)
         }

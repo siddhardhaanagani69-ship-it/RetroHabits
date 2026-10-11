@@ -59,6 +59,8 @@ struct AddSpendingCard: View {
                 }
             }
         }
+        .onAppear { dictation.onAutoStop = { heard in if !heard.isEmpty { draft = heard } } }
+        .onDisappear { _ = dictation.stop() }
         .onChange(of: dictation.transcript) { _, heard in
             if dictation.isListening { draft = heard }
         }
