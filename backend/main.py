@@ -29,7 +29,7 @@ from google.auth.transport.requests import AuthorizedSession
 from google.oauth2.credentials import Credentials
 from google.genai import types
 from psycopg.types.json import Jsonb
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import ripple as rp
 
@@ -439,7 +439,8 @@ def _context(zone: ZoneInfo) -> str:
     return (f"[Background from the app, not written by the user. Now: {now:%A %B %d %Y, %H:%M}]\n"
             f"Upcoming:\n{agenda}\n\nLogged in the last 7 days:\n{recent}\n\n"
             f"Recent email (last 3 days, newest first):\n{inbox}\n\n"
-            f"Money:\n{_money_context(zone)}")
+            f"Money:\n{_money_context(zone)}\n\n"
+            f"History (last {HISTORY_DAYS} days, newest first):\n{_history_context(zone)}")
 
 
 _memory_thread: str | None = None
@@ -465,7 +466,9 @@ async def chat(body: ChatIn) -> ChatOut:
 
     memories = await search_memories(body.message, limit=8)
 
-    system = (f"{ASSISTANT_PROMPT} Keep answers short and conversational; this is a phone chat.\n\n"
+    system = (f"{ASSISTANT_PROMPT} Keep answers short and conversational; this is a phone chat. "
+              "For questions about the past (\"when did I submit ...\", \"did I go to the gym Tuesday\"), "
+              "answer from History with the date. If it isn't there, say you have no record of it; never guess.\n\n"
               f"{_context(zone)}\n\nWhat you remember about them:\n{bullets(memories)}")
     turns = body.history[-20:] + [Turn(role="user", text=body.message)]
     resp = await generate(
@@ -1131,3 +1134,61 @@ def _money_context(zone: ZoneInfo) -> str:
         f"- {ts.astimezone(zone):%a %b %d}: ${float(a):.2f} {c}" + (f" at {m}" if m else "") + (f" ({n})" if n else "")
         for ts, a, c, m, n in rows) or "- nothing recorded"
     return f"{_money_line(zone)}\nRecorded spending, last 7 days (planned costs are not included):\n{recent}"
+
+
+# MARK: - History ("when did I ...")
+
+HISTORY_DAYS = 120
+
+
+class HistoryIn(BaseModel):
+    ref: str = Field(min_length=1, max_length=200)
+    kind: Literal["habit", "submitted"]
+    title: str = Field(min_length=1, max_length=300)
+    detail: str | None = Field(None, max_length=500)
+    at: datetime | None = None   # when it happened; now if omitted
+
+
+@app.post("/history")
+def add_history(body: HistoryIn) -> dict:
+    """Record something that happened. The first record for a ref wins, so the app
+    can re-send safely (e.g. Canvas reporting the same submission every refresh)."""
+    with psycopg.connect(DB) as conn:
+        conn.execute("""insert into history (ref, ts, kind, title, detail) values (%s, %s, %s, %s, %s)
+                        on conflict (ref) do nothing""",
+                     (body.ref, body.at or datetime.now(ZoneInfo("UTC")), body.kind, body.title, body.detail))
+    return {"ref": body.ref}
+
+
+@app.delete("/history/{ref:path}")
+def delete_history(ref: str) -> dict:
+    """Undo a record (a habit unticked, a submission marked by mistake)."""
+    with psycopg.connect(DB) as conn:
+        conn.execute("delete from history where ref = %s", (ref,))
+    return {"deleted": ref}
+
+
+def _history_context(zone: ZoneInfo) -> str:
+    """What happened over the last few months: recorded history, past calendar and
+    Canvas items (what was due or scheduled when), and older voice-note logs."""
+    now = datetime.now(zone)
+    since = now - timedelta(days=HISTORY_DAYS)
+    with psycopg.connect(DB) as conn:
+        done = conn.execute(
+            "select ts, kind, title, detail from history where ts >= %s order by ts desc limit 300",
+            (since,)).fetchall()
+        past = conn.execute(
+            """select start_at, coalesce(summary, title), course, source from items
+               where source <> 'gmail' and start_at >= %s and start_at < %s order by start_at desc limit 150""",
+            (since, now)).fetchall()
+        logs = conn.execute(
+            """select ts, kind, data->>'title', raw_text from logs
+               where ts >= %s and ts < %s order by ts desc limit 100""",
+            (since, now - timedelta(days=7))).fetchall()
+    label = {"habit": "habit done", "submitted": "turned in"}
+    lines = [f"- {ts.astimezone(zone):%a %b %d %Y %H:%M}: {label.get(kind, kind)}: {title}" + (f" ({detail})" if detail else "")
+             for ts, kind, title, detail in done]
+    lines += [f"- {at.astimezone(zone):%a %b %d %Y %H:%M}: was scheduled/due: {title}" + (f" [{course}]" if course else "")
+              + f" (from {source})" for at, title, course, source in past]
+    lines += [f"- {ts.astimezone(zone):%a %b %d %Y}: logged {kind} '{title}': {text}" for ts, kind, title, text in logs]
+    return "\n".join(lines) or "- nothing recorded yet"

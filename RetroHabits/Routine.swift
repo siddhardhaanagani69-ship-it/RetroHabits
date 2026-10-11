@@ -45,9 +45,22 @@ struct Routine: Identifiable, Codable, Equatable {
     var hourlyRate: Double?
     /// Bills due monthly: the day of the month (1–28). nil = weekly on `weekdays`.
     var monthlyDay: Int?
+    /// Classes run for a term: nothing shows (or reminds) after this day. nil = no end.
+    var endDate: Date?
+
+    /// How long a new class runs by default.
+    static func defaultClassEnd(from start: Date = .now) -> Date {
+        Calendar.current.date(byAdding: .month, value: 4, to: start) ?? start
+    }
+
+    var hasEnded: Bool {
+        guard let endDate else { return false }
+        return Calendar.current.startOfDay(for: .now) > Calendar.current.startOfDay(for: endDate)
+    }
 
     func occurs(on day: Date) -> Bool {
         let calendar = Calendar.current
+        if let endDate, calendar.startOfDay(for: day) > calendar.startOfDay(for: endDate) { return false }
         if let monthlyDay { return calendar.component(.day, from: day) == monthlyDay }
         return weekdays.contains(calendar.component(.weekday, from: day))
     }

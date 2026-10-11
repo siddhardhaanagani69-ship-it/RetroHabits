@@ -8,6 +8,7 @@ enum AppTab: String, CaseIterable {
     case ask = "Ask"
     case stats = "Stats"
     case settings = "Setup"
+    case classes = "Class Schedule"
 
     /// In the bottom dock, Learn in the middle. Stats and Setup open from the + button.
     static let dock: [AppTab] = [.agenda, .habits, .learn, .money, .ask]
@@ -21,6 +22,7 @@ enum AppTab: String, CaseIterable {
         case .learn: return "brain.head.profile"
         case .stats: return "chart.bar"
         case .settings: return "gearshape"
+        case .classes: return "graduationcap"
         }
     }
 }
@@ -28,7 +30,7 @@ enum AppTab: String, CaseIterable {
 struct ContentView: View {
     /// `-initialTab Money` at launch (screenshots, demos); Agenda otherwise.
     @State private var tab: AppTab
-    /// Stats or Setup, shown as a sheet from the + button.
+    /// Class Schedule, Stats or Setup, shown as a sheet from the + button.
     @State private var sheet: AppTab?
     /// Hides the dock while typing, so the keyboard isn't stacked on top of it.
     @State private var keyboardShown = false
@@ -90,9 +92,10 @@ struct ContentView: View {
         }
     }
 
-    /// Above the dock, on the right: Stats and Setup.
+    /// Above the dock, on the right: Class Schedule, Stats and Setup.
     private var plusButton: some View {
         Menu {
+            Button("Class Schedule", systemImage: AppTab.classes.icon) { sheet = .classes }
             Button("Stats", systemImage: AppTab.stats.icon) { sheet = .stats }
             Button("Setup", systemImage: AppTab.settings.icon) { sheet = .settings }
         } label: {
@@ -102,7 +105,7 @@ struct ContentView: View {
                 .frame(width: 56, height: 56)
                 .background(Circle().fill(Palette.accent))
         }
-        .accessibilityLabel("More: Stats, Setup")
+        .accessibilityLabel("More: Class Schedule, Stats, Setup")
     }
 
     /// The glow sits above the selected tab's place in the dock, a little in from the edges.
@@ -121,6 +124,7 @@ struct ContentView: View {
         case .learn: LearnView()
         case .stats: StatsView()
         case .settings: SettingsView()
+        case .classes: ClassScheduleView()
         }
     }
 }

@@ -18,6 +18,7 @@ struct AddRoutineView: View {
     @State private var amount: Double?
     @State private var billMonthly = true
     @State private var monthlyDay = 1
+    @State private var classEnd = Routine.defaultClassEnd()
 
     private let reminderChoices: [Int?] = [nil, 0, 5, 10, 15, 30, 60]
 
@@ -64,6 +65,14 @@ struct AddRoutineView: View {
                         DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute)
                         DatePicker("Ends", selection: $end, displayedComponents: .hourAndMinute)
                         TextField("Location (optional)", text: $location)
+                    }
+                }
+
+                if kind == .lecture {
+                    Section {
+                        DatePicker("Until", selection: $classEnd, in: Date.now..., displayedComponents: .date)
+                    } footer: {
+                        Text("Shows in your Agenda on class days and the day before, until this date. Four months by default.")
                     }
                 }
 
@@ -128,6 +137,7 @@ struct AddRoutineView: View {
         amount = routine.amount
         billMonthly = routine.monthlyDay != nil || routine.kind != .bill
         monthlyDay = routine.monthlyDay ?? 1
+        classEnd = routine.endDate ?? Routine.defaultClassEnd()
         if let s = routine.start(on: .now) {
             start = s
             end = s.addingTimeInterval(TimeInterval(routine.durationMinutes * 60))
@@ -149,6 +159,7 @@ struct AddRoutineView: View {
         saved.hourlyRate = kind == .shift ? hourlyRate : nil
         saved.amount = kind == .bill ? amount : nil
         saved.monthlyDay = kind == .bill && billMonthly ? monthlyDay : nil
+        saved.endDate = kind == .lecture ? classEnd : nil
         if kind == .bill {
             // A bill is a due date: reminder at 9 AM that day, no time block.
             saved.startHour = 9

@@ -58,10 +58,13 @@ final class HabitStore: ObservableObject {
     func toggleToday(_ habit: Habit) {
         guard let index = habits.firstIndex(where: { $0.id == habit.id }) else { return }
         let key = Habit.dayKey(for: Date())
+        let ref = "habit-\(habit.id.uuidString)-\(key)"
         if habits[index].completedDays.contains(key) {
             habits[index].completedDays.remove(key)
+            AssistantService.deleteHistory(ref: ref)
         } else {
             habits[index].completedDays.insert(key)
+            AssistantService.recordHistory(ref: ref, kind: "habit", title: habits[index].name)
         }
         // Done today silences today's reminder; undoing it brings the reminder back.
         scheduleReminders(for: habits[index])

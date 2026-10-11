@@ -44,6 +44,13 @@ final class RoutineStore: ObservableObject {
         cancelReminders(for: routine)
     }
 
+    /// Weekly reminders repeat forever, so a class whose term has ended has its
+    /// reminders removed the next time the app wakes.
+    // ponytail: until the app is opened after the end date, an ended class can still remind; fine for a term.
+    func refreshReminders() {
+        routines.filter(\.hasEnded).forEach(cancelReminders)
+    }
+
     /// Routines on a given day, earliest first.
     func routines(on day: Date) -> [Routine] {
         routines
@@ -60,7 +67,7 @@ final class RoutineStore: ObservableObject {
 
     private func scheduleReminders(for routine: Routine) {
         cancelReminders(for: routine)
-        guard let lead = routine.remindMinutesBefore else { return }
+        guard let lead = routine.remindMinutesBefore, !routine.hasEnded else { return }
         let center = UNUserNotificationCenter.current()
         let startText = Self.time(routine)
 

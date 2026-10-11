@@ -3,6 +3,7 @@ import SwiftUI
 struct AgendaView: View {
     @EnvironmentObject var agenda: AgendaStore
     @EnvironmentObject var habits: HabitStore
+    @EnvironmentObject var routines: RoutineStore
     @State private var selectedItem: AgendaItem?
     /// Habits whose box was just ticked, shown checked for a moment before sliding away.
     @State private var checking: Set<UUID> = []
@@ -150,7 +151,15 @@ struct AgendaView: View {
     /// Everything on the selected day: agenda items, then the habits planned for it.
     @ViewBuilder
     private var dayPlan: some View {
-        let dayItems = agenda.visibleItems.filter { Calendar.current.isDate($0.start, inSameDayAs: selectedDay) }
+        // Classes get their own card (that day's, plus tomorrow's as a heads-up), not event rows.
+        let classPrefixes = routines.routines.filter { $0.kind == .lecture }.map { "routine-\($0.id.uuidString)" }
+        let dayItems = agenda.visibleItems.filter { item in
+            Calendar.current.isDate(item.start, inSameDayAs: selectedDay)
+                && !(item.source == .routine && classPrefixes.contains { item.id.hasPrefix($0) })
+        }
+        let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: selectedDay) ?? selectedDay
+        let classes = routines.routines(on: selectedDay).filter { $0.kind == .lecture }.map { ($0, false) }
+            + routines.routines(on: nextDay).filter { $0.kind == .lecture }.map { ($0, true) }
         let isToday = Calendar.current.isDateInToday(selectedDay)
         // Today: every habit still to do (checked ones slide away). Other days: the plan.
         let dayHabits = habits.habits
@@ -160,7 +169,7 @@ struct AgendaView: View {
 
         SectionHeader(text: dayLabel(selectedDay))
 
-        if dayItems.isEmpty && dayHabits.isEmpty && doneToday == 0 && !agenda.isLoading {
+        if dayItems.isEmpty && classes.isEmpty && dayHabits.isEmpty && doneToday == 0 && !agenda.isLoading {
             Card {
                 Text(isToday ? "Nothing planned today. Enjoy it." : "Nothing planned for this day.")
                     .font(.bodyMedium(14))
@@ -171,6 +180,18 @@ struct AgendaView: View {
         ForEach(dayItems) { item in
             Button { selectedItem = item } label: { eventPanel(item) }
                 .buttonStyle(.plain)
+        }
+
+        if !classes.isEmpty {
+            Card {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Classes").font(.heading(18)).foregroundStyle(Palette.ink)
+                    // The same class can be on both days, so rows are keyed by position.
+                    ForEach(classes.indices, id: \.self) { index in
+                        classRow(classes[index].0, nextDay: classes[index].1, isToday: isToday)
+                    }
+                }
+            }
         }
 
         if !dayHabits.isEmpty || doneToday > 0 {
@@ -212,6 +233,27 @@ struct AgendaView: View {
                 }
             }
         }
+    }
+
+    private func classRow(_ routine: Routine, nextDay: Bool, isToday: Bool) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: Routine.Kind.lecture.symbol)
+                .foregroundStyle(nextDay ? Palette.muted : Palette.accent)
+                .frame(width: 28)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(routine.name).font(.bodyMedium(15)).foregroundStyle(Palette.ink)
+                Text([RoutineStore.time(routine), routine.location].compactMap { $0 }.joined(separator: " · "))
+                    .font(.subheadline)
+                    .foregroundStyle(Palette.muted)
+            }
+            Spacer()
+            if nextDay {
+                StatusPill(text: isToday ? "Tomorrow" : "Next day", tone: .neutral)
+            }
+        }
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .combine)
     }
 
     /// Ticks the box, lets the check show for a moment, then marks the habit done so
@@ -347,6 +389,7 @@ struct AgendaView: View {
 
 struct EventDetailView: View {
     let item: AgendaItem
+    @ObservedObject private var agenda = AgendaStore.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
@@ -391,7 +434,7 @@ struct EventDetailView: View {
                             }
                             if item.kind.isSubmittable {
                                 detailRow(
-                                    icon: item.isSubmitted ? "checkmark.circle.fill" : "exclamationmark.circle.fill",
+                                    icon: isSubmitted ? "checkmark.circle.fill" : "exclamationmark.circle.fill",
                                     label: "Status",
                                     value: statusText
                                 )
@@ -414,6 +457,18 @@ struct EventDetailView: View {
                     }
 
                     VStack(spacing: 10) {
+                        if item.kind.isSubmittable {
+                            Button {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                agenda.setSubmitted(item, !isSubmitted)
+                            } label: {
+                                Label(isSubmitted ? "Mark as Not Turned In" : "Mark as Turned In",
+                                      systemImage: isSubmitted ? "arrow.uturn.backward" : "checkmark.circle.fill")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(FilledButtonStyle(fill: isSubmitted ? Palette.fill : Palette.accent,
+                                                           textColor: isSubmitted ? Palette.accent : .white))
+                        }
                         if let url = item.url {
                             Button {
                                 openURL(url)
@@ -450,8 +505,13 @@ struct EventDetailView: View {
         .presentationDragIndicator(.visible)
     }
 
+    /// Live from the store, so the button and status flip as soon as you tap.
+    private var isSubmitted: Bool {
+        agenda.items.first { $0.id == item.id }?.isSubmitted ?? item.isSubmitted
+    }
+
     private var statusText: String {
-        if item.isSubmitted { return item.isGraded ? "Turned in and graded" : "Turned in" }
+        if isSubmitted { return item.isGraded ? "Turned in and graded" : "Turned in" }
         if item.isMissing { return "Missing — not submitted" }
         return "Not turned in yet"
     }

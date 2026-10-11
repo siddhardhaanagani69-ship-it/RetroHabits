@@ -442,6 +442,27 @@ enum AssistantService {
         return try decoder.decode(T.self, from: data)
     }
 
+    // MARK: History
+
+    /// Records something that happened, so Ask can answer "when did I ...". Best effort:
+    /// runs in the background and never holds up the UI.
+    // ponytail: no offline queue; a record made with no connection is lost. Add one if that bites.
+    static func recordHistory(ref: String, kind: String, title: String, detail: String? = nil, at: Date = .now) {
+        var body = ["ref": ref, "kind": kind, "title": title, "at": at.ISO8601Format()]
+        if let detail { body["detail"] = detail }
+        Task {
+            struct Recorded: Decodable { let ref: String }
+            let _: Recorded? = try? await memoryRequest("history", method: "POST", body: body)
+        }
+    }
+
+    static func deleteHistory(ref: String) {
+        Task {
+            struct Deleted: Decodable { let deleted: String }
+            let _: Deleted? = try? await memoryRequest("history/\(ref)", method: "DELETE")
+        }
+    }
+
     // MARK: Spoken briefing
 
     /// MP3 of today's briefing, written by Gemini and read by ElevenLabs.

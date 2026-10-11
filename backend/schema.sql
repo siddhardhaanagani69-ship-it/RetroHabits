@@ -46,3 +46,14 @@ create table if not exists prefs (
     key   text primary key,
     value jsonb not null
 );
+
+-- What happened, so Ask can answer "when did I ...": habits done, assignments turned in.
+-- Keyed by a ref the app builds (habit-<id>-<day>, submit-<item id>), so re-sends are ignored.
+create table if not exists history (
+    ref    text primary key,
+    ts     timestamptz not null,
+    kind   text not null,                    -- habit | submitted
+    title  text not null,
+    detail text
+);
+create index if not exists history_ts on history (ts desc);

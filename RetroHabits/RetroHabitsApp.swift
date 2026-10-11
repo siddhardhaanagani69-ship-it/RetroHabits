@@ -28,6 +28,7 @@ struct RetroHabitsApp: App {
             switch newPhase {
             case .active:
                 HabitStore.shared.refreshReminders()
+                RoutineStore.shared.refreshReminders()
                 Task { await AgendaStore.shared.refresh() }
             case .background:
                 Self.scheduleBackgroundRefresh()

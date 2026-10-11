@@ -22,6 +22,44 @@ final class AgendaStore: ObservableObject {
     /// Hide work that's already turned in.
     @Published var hideSubmitted = false
 
+    /// Work you've marked as turned in (and Canvas submissions already recorded),
+    /// kept on the phone so the mark survives refreshes of an .ics feed.
+    private var submittedIDs: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: "submitted_item_ids") ?? []) }
+        set { UserDefaults.standard.set(Array(newValue), forKey: "submitted_item_ids") }
+    }
+
+    /// Mark work turned in (or not), and record it so Ask can say when it was submitted.
+    func setSubmitted(_ item: AgendaItem, _ submitted: Bool) {
+        if submitted {
+            submittedIDs.insert(item.id)
+            AssistantService.recordHistory(ref: "submit-\(item.id)", kind: "submitted", title: item.title,
+                                           detail: Self.submissionDetail(item))
+        } else {
+            submittedIDs.remove(item.id)
+            AssistantService.deleteHistory(ref: "submit-\(item.id)")
+        }
+        for index in items.indices where items[index].id == item.id { items[index].isSubmitted = submitted }
+    }
+
+    private static func submissionDetail(_ item: AgendaItem) -> String {
+        [item.courseName, "due \(item.start.formatted(date: .abbreviated, time: .shortened))"]
+            .compactMap { $0 }.joined(separator: ", ")
+    }
+
+    /// Canvas reports some submissions itself: record each once. Then show every
+    /// remembered mark, since an .ics feed never says what was turned in.
+    private func applySubmissions() {
+        var known = submittedIDs
+        for item in items where item.isSubmitted && !known.contains(item.id) {
+            known.insert(item.id)
+            AssistantService.recordHistory(ref: "submit-\(item.id)", kind: "submitted", title: item.title,
+                                           detail: (Self.submissionDetail(item) + ", seen on Canvas"))
+        }
+        submittedIDs = known
+        for index in items.indices where known.contains(items[index].id) { items[index].isSubmitted = true }
+    }
+
     // MARK: Stored settings
 
     var canvasFeedURL: String {
@@ -160,6 +198,7 @@ final class AgendaStore: ObservableObject {
             items.sort { $0.start < $1.start }
         }
 
+        applySubmissions()
         await MoneyStore.shared.refresh()   // the budget line on the home screen
         lastRefreshed = Date()
         isLoading = false
