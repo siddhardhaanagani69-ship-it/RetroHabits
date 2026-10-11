@@ -15,6 +15,8 @@ struct ChatView: View {
     @FocusState private var inputFocused: Bool
     @StateObject private var dictation = Dictation()
     @StateObject private var voice = SpeechPlayer()
+    /// Which reply the player is on, so only that reply's button shows loading / Stop.
+    @State private var speakingTurn: AssistantService.Turn.ID?
     /// Read every reply aloud, not just replies to spoken questions.
     @AppStorage("ask_speaks_replies") private var speakReplies = false
 
@@ -48,16 +50,7 @@ struct ChatView: View {
                             if turn.role == .assistant {
                                 HStack(spacing: 8) {
                                     if !turn.memories.isEmpty { WhyButton { inspecting = turn } }
-                                    Button {
-                                        Task { await voice.toggle { try await AssistantService.speech(for: turn.text) } }
-                                    } label: {
-                                        Label("Listen", systemImage: "play.fill")
-                                            .font(.caption.weight(.semibold))
-                                            .foregroundStyle(Palette.accent)
-                                            .frame(minHeight: 44)
-                                            .contentShape(.rect)
-                                    }
-                                    .buttonStyle(.plain)
+                                    listenButton(turn)
                                 }
                             }
                         }
@@ -110,6 +103,37 @@ struct ChatView: View {
                 )
             if !mine { Spacer(minLength: 40) }
         }
+    }
+
+    private func listenButton(_ turn: AssistantService.Turn) -> some View {
+        let state = speakingTurn == turn.id ? voice.state : .idle
+        return Button {
+            Task { await listen(to: turn) }
+        } label: {
+            HStack(spacing: 6) {
+                switch state {
+                case .loading: ProgressView().controlSize(.small).tint(Palette.accent)
+                case .playing: Image(systemName: "stop.fill")
+                case .idle: Image(systemName: "play.fill")
+                }
+                Text(state == .playing ? "Stop" : state == .loading ? "Loading…" : "Listen")
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Palette.accent)
+            .frame(minHeight: 44)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .disabled(state == .loading)
+        .accessibilityLabel(state == .playing ? "Stop reading this reply" : "Read this reply aloud")
+    }
+
+    /// Plays a reply, or stops it if it's the one playing. Never touches the mic.
+    private func listen(to turn: AssistantService.Turn) async {
+        if speakingTurn == turn.id && voice.state == .playing { voice.stop(); return }
+        if dictation.isListening { _ = dictation.stop() }
+        speakingTurn = turn.id
+        await voice.play { try await AssistantService.speech(for: turn.text) }
     }
 
     private var canSend: Bool {
@@ -226,8 +250,10 @@ struct ChatView: View {
         defer { isSending = false }
         do {
             let (reply, memories) = try await AssistantService.chat(message, history: history)
-            turns.append(.init(role: .assistant, text: reply, memories: memories))
+            let answer = AssistantService.Turn(role: .assistant, text: reply, memories: memories)
+            turns.append(answer)
             if spoken || speakReplies {
+                speakingTurn = answer.id
                 await voice.play { try await AssistantService.speech(for: reply) }
             }
         } catch {

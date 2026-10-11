@@ -10,7 +10,9 @@ final class Dictation: ObservableObject {
     @Published private(set) var error: String?
 
     private let recognizer = SFSpeechRecognizer()
-    private let engine = AVAudioEngine()
+    /// A fresh engine per recording, released afterwards: a kept engine holds on to the
+    /// microphone input, which leaves the mic looking active and can silence playback.
+    private var engine: AVAudioEngine?
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
 
@@ -35,6 +37,8 @@ final class Dictation: ObservableObject {
             let request = SFSpeechAudioBufferRecognitionRequest()
             request.shouldReportPartialResults = true
             if recognizer.supportsOnDeviceRecognition { request.requiresOnDeviceRecognition = true }
+            let engine = AVAudioEngine()
+            self.engine = engine
             Self.feed(engine.inputNode, into: request)
             engine.prepare()
             try engine.start()
@@ -64,9 +68,10 @@ final class Dictation: ObservableObject {
     }
 
     private func finish() {
-        guard isListening || engine.isRunning else { return }
+        guard let engine else { isListening = false; return }
         engine.stop()
         engine.inputNode.removeTap(onBus: 0)
+        self.engine = nil
         request?.endAudio()
         task?.cancel()
         request = nil

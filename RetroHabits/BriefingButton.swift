@@ -23,12 +23,14 @@ final class SpeechPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         state = .loading
         do {
             let data = try await load()
-            // Duck music rather than stop it, like a navigation prompt.
-            try AVAudioSession.sharedInstance().setCategory(.playback, options: [.duckOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
+            // Plain playback (never the mic), out loud even on silent; ducks music like a navigation prompt.
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+            try session.setActive(true)
             let player = try AVAudioPlayer(data: data)
             player.delegate = self
-            player.play()
+            player.volume = 1
+            guard player.play() else { throw PlaybackError() }
             self.player = player
             state = .playing
         } catch {
@@ -42,6 +44,10 @@ final class SpeechPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         player = nil
         state = .idle
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    private struct PlaybackError: LocalizedError {
+        var errorDescription: String? { "Couldn't play the reply. Check the volume and try again." }
     }
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
