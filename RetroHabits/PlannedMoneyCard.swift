@@ -1,38 +1,37 @@
 import SwiftUI
 
-/// Money that's planned, not recorded: this week's shift pay and bills due soon.
+/// "Coming up": bills due in the next week and pay from shifts still ahead, as a
+/// timeline. Everything here is planned — nothing is counted as spent or earned.
 struct PlannedMoneyCard: View {
     @ObservedObject private var money = MoneyStore.shared
     @EnvironmentObject private var routines: RoutineStore
 
     var body: some View {
-        let pay = money.plannedShiftPay
-        let bills = money.upcomingBills
-        if pay.shifts > 0 || !bills.isEmpty {
-            Card {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Planned").font(.headline)
-                    if pay.shifts > 0 {
-                        Label {
-                            Text("\(pay.shifts) shift\(pay.shifts == 1 ? "" : "s") left this week ≈ \(BudgetCard.money(pay.total)) — not earned yet")
-                        } icon: {
-                            Image(systemName: "briefcase.fill").foregroundStyle(Palette.purple)
-                        }
-                        .font(.subheadline)
-                    }
-                    ForEach(bills, id: \.bill.id) { item in
-                        Label {
-                            Text("\(item.bill.name) · \(item.bill.amount.map(BudgetCard.money) ?? "") · due \(item.date.formatted(.dateTime.weekday(.wide)))")
-                        } icon: {
-                            Image(systemName: "creditcard.fill").foregroundStyle(Palette.orange)
-                        }
-                        .font(.subheadline)
-                    }
-                    Text("Add shifts with pay and bills in Routine → Add Class or Shift.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
+        let steps = self.steps
+        if !steps.isEmpty {
+            SectionTitle(title: "Coming up", symbol: "flag")
+            Card { Timeline(steps: steps) }
         }
+    }
+
+    private var steps: [Timeline.Step] {
+        let pay = money.plannedShiftPay
+        var steps = money.upcomingBills.map { item in
+            Timeline.Step(
+                id: "\(item.bill.id)-\(item.date.timeIntervalSince1970)",
+                title: "\(item.bill.name) · \(item.bill.amount.map(BudgetCard.money) ?? "")",
+                detail: Calendar.current.isDateInToday(item.date) ? "Due today" : "Due \(item.date.formatted(.dateTime.weekday(.wide)))",
+                state: .later)
+        }
+        if pay.shifts > 0 {
+            steps.append(Timeline.Step(
+                id: "shift-pay",
+                title: "Shift pay ≈ \(BudgetCard.money(pay.total))",
+                detail: "\(pay.shifts) shift\(pay.shifts == 1 ? "" : "s") left this week · not earned yet",
+                state: .later))
+        }
+        // The soonest item is the one to watch.
+        if !steps.isEmpty { steps[0] = Timeline.Step(id: steps[0].id, title: steps[0].title, detail: steps[0].detail, state: .next) }
+        return steps
     }
 }

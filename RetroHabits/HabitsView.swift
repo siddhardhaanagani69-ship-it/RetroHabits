@@ -90,6 +90,7 @@ struct HabitsView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
                 .padding(.bottom, 24)
+                .background(alignment: .top) { GlowBackground().ignoresSafeArea(edges: .top) }
             }
 
             if let milestoneBanner {
@@ -119,14 +120,18 @@ struct HabitsView: View {
     private var progressPanel: some View {
         let total = store.todaysHabits.count
         let done = store.todaysHabits.filter { $0.isCompleted(on: Date()) }.count
-        return Card(fill: Palette.yellow) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(done == total ? "All done today!" : "\(done) of \(total) done today")
-                    .font(.heading(22))
-                    .foregroundStyle(Palette.ink)
-                ProgressCapsule(progress: store.todayProgress)
-            }
-        }
+        let best = store.todaysHabits.map(\.streak).max() ?? 0
+        return HeroStat(
+            label: "Habits today",
+            value: "\(done) of \(total)",
+            pill: done == total
+                ? StatusPill(text: "All done today", tone: .good, symbol: "checkmark")
+                : best > 1 ? StatusPill(text: "\(best)-day streak going", tone: .neutral, symbol: "flame.fill")
+                : StatusPill(text: "\(total - done) to go", tone: .neutral),
+            progress: store.todayProgress,
+            low: "0",
+            high: "\(total)"
+        )
     }
 
 

@@ -17,12 +17,13 @@ struct Card<Content: View>: View {
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 22)
                     .fill(Palette.panel)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: 22)
                             .fill(fill == Palette.panel ? Color.clear : fill.opacity(0.16))
                     )
+                    .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(Palette.hairline, lineWidth: 1))
             )
     }
 }
@@ -122,8 +123,8 @@ struct ProgressCapsule: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(Palette.fill)
                 Capsule()
-                    .fill(Palette.blue)
-                    .frame(width: max(0, geo.size.width * progress))
+                    .fill(Palette.accentGradient)
+                    .frame(width: max(0, geo.size.width * min(1, progress)))
             }
         }
         .frame(height: 8)

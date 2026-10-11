@@ -1,17 +1,22 @@
 import SwiftUI
 
-/// App palette: iOS system colors, so screens look like the rest of the platform.
+/// App palette. Light mode matches iOS's grouped look; dark mode uses deeper
+/// charcoal surfaces (asset catalog colors Paper, Panel and Hairline).
 enum Palette {
-    static let paper    = Color(.systemGroupedBackground)
-    static let panel    = Color(.secondarySystemGroupedBackground)
+    static let paper    = Color("Paper")
+    static let panel    = Color("Panel")
     static let ink      = Color.primary
-    static let hairline = Color(.separator)
+    static let hairline = Color("Hairline")
     static let fill     = Color(.tertiarySystemFill)
     static let red      = Color(.systemRed)
     static let yellow   = Color(.systemYellow)
     static let blue     = Color(.systemBlue)
     static let orange   = Color(.systemOrange)
     static let purple   = Color(.systemPurple)
+    static let green    = Color(.systemGreen)
+    static let cyan     = Color(.systemCyan)
+    /// The blue-to-cyan used for progress and range bars.
+    static let accentGradient = LinearGradient(colors: [blue, cyan], startPoint: .leading, endPoint: .trailing)
 }
 
 extension Font {

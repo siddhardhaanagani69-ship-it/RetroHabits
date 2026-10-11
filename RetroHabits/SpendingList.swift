@@ -6,7 +6,7 @@ struct SpendingList: View {
 
     var body: some View {
         if let entries = money.summary?.entries, !entries.isEmpty {
-            SectionHeader(text: "This week")
+            SectionTitle(title: "This week", symbol: "list.bullet")
             Card {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(entries) { entry in

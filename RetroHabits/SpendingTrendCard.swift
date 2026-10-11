@@ -5,10 +5,11 @@ import Charts
 struct SpendingTrendCard: View {
     @ObservedObject private var money = MoneyStore.shared
 
+    @ViewBuilder
     var body: some View {
+        SectionTitle(title: "Last 8 weeks", symbol: "chart.bar")
         Card {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Last 8 weeks").font(.headline)
                 if money.trend.isEmpty {
                     Text("Your weekly spending shows up here as you log it.")
                         .font(.subheadline)
