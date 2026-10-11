@@ -5,6 +5,9 @@ import SwiftUI
 struct ChatView: View {
     @Binding var turns: [AssistantService.Turn]
     @State private var draft = ""
+    /// The last message sent and when, so a double trigger (you tap Stop just as the
+    /// mic stops by itself) can't send the same question twice.
+    @State private var lastSent: (text: String, at: Date)?
     /// The full-screen editor for long messages.
     @State private var composing = false
     /// Matches the server's limit.
@@ -237,6 +240,8 @@ struct ChatView: View {
 
     /// First tap listens; second tap sends what was heard and reads the answer aloud.
     private func toggleMic() async {
+        // Your tap landed just after the mic stopped and sent by itself: don't start listening again.
+        if !dictation.isListening, isSending, let lastSent, Date.now.timeIntervalSince(lastSent.at) < 2 { return }
         if dictation.isListening {
             let heard = dictation.stop()
             if !heard.isEmpty { draft = heard }
@@ -250,7 +255,12 @@ struct ChatView: View {
 
     private func send(spoken: Bool = false) async {
         let message = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !message.isEmpty else { return }
+        guard !message.isEmpty, !isSending else { return }
+        if let lastSent, lastSent.text == message, Date.now.timeIntervalSince(lastSent.at) < 5 {
+            draft = ""
+            return
+        }
+        lastSent = (message, .now)
         let history = turns
         draft = ""
         error = nil
