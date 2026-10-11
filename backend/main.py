@@ -460,8 +460,8 @@ async def remember(text: str) -> None:
 
 @app.post("/chat")
 async def chat(body: ChatIn) -> ChatOut:
-    if not body.message.strip() or len(body.message) > 4000:
-        raise HTTPException(400, "Message must be 1-4000 characters")
+    if not body.message.strip() or len(body.message) > 8000:
+        raise HTTPException(400, "Message must be 1-8000 characters")
     zone = _zone(body.tz)
 
     memories = await search_memories(body.message, limit=8)

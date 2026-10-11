@@ -5,6 +5,10 @@ import SwiftUI
 struct ChatView: View {
     @Binding var turns: [AssistantService.Turn]
     @State private var draft = ""
+    /// The full-screen editor for long messages.
+    @State private var composing = false
+    /// Matches the server's limit.
+    private let maxLength = 8000
     @State private var isSending = false
     @State private var error: String?
     @State private var inspecting: AssistantService.Turn?
@@ -82,6 +86,7 @@ struct ChatView: View {
 
             inputBar
         }
+        .sheet(isPresented: $composing) { composer }
         .sheet(item: $inspecting) { turn in
             MemoryInspector(title: "What I drew on for that answer.", memories: turn.memories)
         }
@@ -107,8 +112,44 @@ struct ChatView: View {
         }
     }
 
+    private var canSend: Bool {
+        !isSending && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && draft.count <= maxLength
+    }
+
+    private var lengthLabel: some View {
+        Text("\(draft.count) / \(maxLength)")
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(draft.count > maxLength ? Palette.red : Palette.muted)
+    }
+
+    /// Room to write or paste something long, then send it from here.
+    private var composer: some View {
+        NavigationStack {
+            TextEditor(text: $draft)
+                .font(.bodyRegular(17))
+                .scrollContentBackground(.hidden)
+                .padding(.horizontal, 12)
+                .background(Palette.paper)
+                .navigationTitle("Message")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Done") { composing = false } }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Send") {
+                            composing = false
+                            Task { await send() }
+                        }
+                        .disabled(!canSend)
+                    }
+                    ToolbarItem(placement: .bottomBar) { lengthLabel }
+                }
+        }
+    }
+
     private var inputBar: some View {
-        HStack(spacing: 8) {
+        VStack(alignment: .trailing, spacing: 4) {
+        if draft.count > maxLength - 1000 { lengthLabel }
+        HStack(alignment: .bottom, spacing: 8) {
             Button {
                 Task { await toggleMic() }
             } label: {
@@ -120,14 +161,28 @@ struct ChatView: View {
             .disabled(isSending)
             .accessibilityLabel(dictation.isListening ? "Stop and send" : "Speak your question")
 
-            TextField(dictation.isListening ? "Listening…" : "Ask anything…", text: $draft, axis: .vertical)
-                .font(.bodyMedium(15))
-                .foregroundStyle(Palette.ink)
-                .lineLimit(1...4)
-                .focused($inputFocused)
-                .padding(10)
-                .background(Palette.panel)
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.hairline, lineWidth: 1))
+            HStack(alignment: .bottom, spacing: 4) {
+                // Grows to 10 lines, then scrolls; the expand button opens a full-screen editor.
+                TextField(dictation.isListening ? "Listening…" : "Ask anything…", text: $draft, axis: .vertical)
+                    .font(.bodyRegular(16))
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1...10)
+                    .focused($inputFocused)
+                    .padding(.vertical, 11)
+                    .padding(.leading, 12)
+                Button { composing = true } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Palette.muted)
+                        .frame(width: 36, height: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Write a long message")
+            }
+            .frame(minHeight: 44)
+            .background(Palette.panel, in: .rect(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Palette.hairline, lineWidth: 1))
             Button {
                 Task { await send() }
             } label: {
@@ -135,8 +190,9 @@ struct ChatView: View {
                     .font(.system(size: 16, weight: .black))
             }
             .buttonStyle(FilledButtonStyle(fill: Palette.accent, textColor: .white))
-            .disabled(isSending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(!canSend)
             .accessibilityLabel("Send")
+        }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
