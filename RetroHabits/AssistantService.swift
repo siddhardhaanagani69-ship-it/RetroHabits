@@ -347,6 +347,9 @@ enum AssistantService {
         let action: String
         let urgency: Int
         let sender: String
+        let subject: String
+        let excerpt: String
+        let link: URL?
 
         /// "Microsoft Teams <noreply@…>" → "Microsoft Teams"
         var senderName: String {

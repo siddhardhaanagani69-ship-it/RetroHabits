@@ -454,6 +454,9 @@ async def chat(body: ChatIn) -> ChatOut:
 class MailBrief(Summary):
     sender: str
     received: datetime
+    subject: str
+    excerpt: str          # start of the body, for the detail view
+    link: str | None      # opens the message in Gmail
 
 
 # Gmail search syntax: recent inbox mail, minus promos/social noise.
@@ -505,23 +508,41 @@ def mail() -> list[MailBrief]:
     try:
         found = session.get(GMAIL_API, params={"q": GMAIL_QUERY, "maxResults": MAX_MAILS}, timeout=20)
         found.raise_for_status()
-        raws = []
+        raws = []   # (gmail message id, raw RFC 822 bytes)
         for ref in found.json().get("messages", []):
             msg = session.get(f"{GMAIL_API}/{ref['id']}", params={"format": "raw"}, timeout=20)
             msg.raise_for_status()
-            raws.append(base64.urlsafe_b64decode(msg.json()["raw"]))
+            raws.append((ref["id"], base64.urlsafe_b64decode(msg.json()["raw"])))
+        account = _gmail_address(session)
     except RefreshError:
         raise HTTPException(502, "Gmail sign-in expired or was revoked — run gmail_auth.py again")
     except requests.RequestException as e:
         raise HTTPException(502, f"Gmail fetch failed: {e}")
 
-    parsed = [_parse_mail(r) for r in raws]
-    by_id = {item.id: (item, sender) for item, sender in parsed}
-    return [
-        MailBrief(**s.model_dump(), sender=by_id[s.id][1],
-                  received=by_id[s.id][0].start or datetime.now().astimezone())
-        for s in summarize([item for item, _ in parsed])
-    ]
+    parsed = [(gid, *_parse_mail(raw)) for gid, raw in raws]
+    by_id = {item.id: (gid, item, sender) for gid, item, sender in parsed}
+    out = []
+    for s in summarize([item for _, item, _ in parsed]):
+        gid, item, sender = by_id[s.id]
+        out.append(MailBrief(
+            **s.model_dump(), sender=sender, subject=item.title,
+            received=item.start or datetime.now().astimezone(),
+            excerpt=(item.notes or "").split("\n", 1)[-1][:700],
+            # authuser picks the right account when several are signed in to Gmail.
+            link=f"https://mail.google.com/mail/?authuser={account}#all/{gid}" if account else None,
+        ))
+    return out
+
+
+_gmail_account: str | None = None
+
+
+def _gmail_address(session: AuthorizedSession) -> str | None:
+    global _gmail_account
+    if _gmail_account is None:
+        r = session.get("https://gmail.googleapis.com/gmail/v1/users/me/profile", timeout=20)
+        _gmail_account = r.json().get("emailAddress") if r.ok else None
+    return _gmail_account
 
 
 # MARK: - Spoken briefing (ElevenLabs)
