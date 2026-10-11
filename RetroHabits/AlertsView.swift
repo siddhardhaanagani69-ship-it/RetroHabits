@@ -26,7 +26,7 @@ struct AlertsSection: View {
                         Text("Notifications are off")
                             .font(.heading(20))
                             .foregroundStyle(Palette.red)
-                        Text("Turn them on in iPhone Settings → RetroHabits → Notifications so alerts can reach you.")
+                        Text("Turn them on in iPhone Settings → Habits → Notifications so alerts can reach you.")
                             .font(.bodyMedium(13))
                             .foregroundStyle(Palette.ink)
                             .fixedSize(horizontal: false, vertical: true)

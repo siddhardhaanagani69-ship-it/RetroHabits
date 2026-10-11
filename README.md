@@ -1,4 +1,6 @@
-# RetroHabits
+# Habits
+
+**A student starter pack.**
 
 A personal assistant for students, as a native iPhone app. Your classes,
 deadlines, email, habits and memory live in one place, and the app shows how a
@@ -7,24 +9,29 @@ change in one part of your week affects the rest.
 **Built with:** SwiftUI · FastAPI on Vultr · Gemini · Tiger Data · Backboard ·
 ElevenLabs · Gmail API
 
-A two-page overview is in [`RetroHabits-README.pdf`](RetroHabits-README.pdf).
+A two-page overview is in [`Habits-README.pdf`](Habits-README.pdf). (The repo and Xcode project keep the
+older name, RetroHabits.)
 
 ## Features
 
 | Feature | What it does |
 |---|---|
-| **Agenda home** | Date circles for the next two weeks on top; tap one to see that day's plan — Canvas, iPhone Calendar (incl. Outlook/Teams meetings) and email deadlines, plus that day's habits with times. Gemini rewrites each noisy item as one line: what it is, when, what to do. |
+| **Agenda home** | Date circles for the next two weeks on top and this week's budget; tap one to see that day's plan — Canvas, iPhone Calendar (incl. Outlook/Teams meetings) and email deadlines, each rewritten by Gemini as one line. Below: a Classes card (that day's plus tomorrow's) and every habit still to do as a checkbox. |
+| **Habits** | Tick one and it slides away, today's reminder for it is cancelled, and the tick is recorded for Ask. |
+| **Class schedule** | From the **+** button: add, edit or swipe-to-delete classes. Each runs for a four-month term by default and shows on its day and the day before. |
+| **Money** | A weekly budget. Log spending by typing, dictation or a receipt photo — with no amount it asks instead of guessing. Ripple and Capture show what a plan would leave; bills and shift pay show as planned; an 8-week trend by category. |
 | **Ripple Mode** | Say what changed ("my lab moved to Friday evening") or ask "what if…". See what it collides with, free slots for any displaced habit session, and accept or reject a revised plan. |
 | **Campus Capture** | Photograph an event flyer. Get the event details, whether it fits your calendar, which interests you've shared it matches, and what the flyer leaves out (e.g. the price). Save it to Calendar or plan around it. |
 | **Voice log + recall** | Record "leg day, squats 3×8 at 135". It's stored as structured data; on the same weekday next time, the app shows what you did and suggests repeat / progress / ease off. |
-| **Ask** | Chat by typing or tapping the mic (on-device speech-to-text). Answers use your agenda, recent logs, recent email and long-term memory, and are read aloud when you ask by voice. |
+| **Ask** | Chat by typing or tapping the mic (on-device speech-to-text). Answers use your agenda, logs, email, budget, long-term memory and 120 days of history — "when did I submit my lab?" gets a date, or "no record". Read aloud when you ask by voice. |
 | **Memory Inspector** | Tap **Why?** on any suggestion to see the memories it used, then correct or forget one — the suggestion updates. |
 | **Inbox & email deadlines** | Recent Gmail (incl. Teams notifications) as tappable one-liners with *Open in Gmail*. Deadlines and meetings an email states become agenda items with alerts, and Ripple checks them for conflicts. |
 | **Spoken briefing** | One tap reads today's plan, urgent email and training aloud. |
 | **Habits, Stats, Learn** | Streaks and reminders, XP and achievements, and an AI-engineering learning feed. |
 
-The app uses the standard iOS look (system font and colors, light and dark
-mode, native tab bar) with an app icon that has a dark variant.
+Warm charcoal and crimson in dark mode (light mode too), swipe between tabs,
+a dock with a **+** menu (Class Schedule, Stats, Setup), and a bright app icon
+with a dark variant.
 
 ### Design rules
 

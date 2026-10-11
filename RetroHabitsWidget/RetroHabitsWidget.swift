@@ -222,8 +222,8 @@ struct RetroHabitsWidget: Widget {
             RetroHabitsWidgetEntryView(entry: entry)
                 .containerBackground(W.paper, for: .widget)
         }
-        .configurationDisplayName("RetroHabits")
-        .description("Today's habits and your next deadline.")
+        .configurationDisplayName("Habits")
+        .description("A student starter pack: today's habits and your next deadline.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
     }
 }

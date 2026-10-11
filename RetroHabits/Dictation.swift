@@ -20,7 +20,7 @@ final class Dictation: ObservableObject {
             SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0 == .authorized) }
         }
         guard speechAllowed, await AVAudioApplication.requestRecordPermission() else {
-            error = "Allow Microphone and Speech Recognition for RetroHabits in iPhone Settings."
+            error = "Allow Microphone and Speech Recognition for Habits in iPhone Settings."
             return
         }
         guard let recognizer, recognizer.isAvailable else {

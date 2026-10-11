@@ -21,7 +21,7 @@ final class VoiceRecorder: ObservableObject {
 
     private func start() async {
         guard await AVAudioApplication.requestRecordPermission() else {
-            state = .failed("Microphone access is off. Turn it on in iPhone Settings → RetroHabits.")
+            state = .failed("Microphone access is off. Turn it on in iPhone Settings → Habits.")
             return
         }
         do {

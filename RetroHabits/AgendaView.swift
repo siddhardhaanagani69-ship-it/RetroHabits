@@ -39,7 +39,7 @@ struct AgendaView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
-                    ScreenHeader(title: "Agenda", subtitle: "Classes, deadlines and events.")
+                    ScreenHeader(title: "Agenda", subtitle: "\(AppInfo.name): \(AppInfo.tagline.lowercased())")
                     BriefingButton()
                     Button {
                         Task { await agenda.refresh() }

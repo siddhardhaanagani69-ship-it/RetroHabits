@@ -25,11 +25,13 @@ struct SettingsView: View {
                 digestPanel
                 permissionsPanel
 
-                Text("RetroHabits")
-                    .font(.heading(16))
-                    .foregroundStyle(Palette.ink.opacity(0.45))
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 8)
+                VStack(spacing: 2) {
+                    Text("Habits").font(.heading(16))
+                    Text(AppInfo.tagline).font(.footnote)
+                }
+                .foregroundStyle(Palette.muted)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 8)
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
@@ -75,7 +77,7 @@ struct SettingsView: View {
                 }
                 .buttonStyle(FilledButtonStyle())
                 .sheet(isPresented: $showingMemories) { AllMemoriesSheet() }
-                Text("Leave blank to use the RetroHabits server. Paste the API_TOKEN from backend/.env as the token.")
+                Text("Leave blank to use the Habits server. Paste the API_TOKEN from backend/.env as the token.")
                     .font(.bodyRegular(12))
                     .foregroundStyle(Palette.ink.opacity(0.65))
                     .fixedSize(horizontal: false, vertical: true)
@@ -309,7 +311,7 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(FilledButtonStyle())
-                Text("iOS doesn't let apps read other apps' notifications, so RetroHabits builds its own alerts from your Canvas and calendar data.")
+                Text("iOS doesn't let apps read other apps' notifications, so Habits builds its own alerts from your Canvas and calendar data.")
                     .font(.bodyRegular(12))
                     .foregroundStyle(Palette.ink.opacity(0.65))
                     .fixedSize(horizontal: false, vertical: true)

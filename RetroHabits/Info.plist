@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDisplayName</key>
+	<string>Habits</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
@@ -19,14 +21,14 @@
 	<key>AssistantToken</key>
 	<string>$(ASSISTANT_TOKEN)</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Snap a campus event flyer so RetroHabits can check it against your schedule.</string>
+	<string>Snap a campus event flyer so Habits can check it against your schedule.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Turns what you say into a question for your assistant.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Record quick voice notes about your workouts and day so your assistant can log and remember them.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>RetroHabits talks to your assistant server on this Wi-Fi to summarize your agenda.</string>
+	<string>Habits talks to your assistant server on this Wi-Fi to summarize your agenda.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>RetroHabits shows events from your iPhone calendars (Apple Calendar and any synced account, like your school email) in your daily agenda.</string>
+	<string>Habits shows events from your iPhone calendars (Apple Calendar and any synced account, like your school email) in your daily agenda.</string>
 </dict>
 </plist>
