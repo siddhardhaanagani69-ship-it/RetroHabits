@@ -691,9 +691,11 @@ class ParsedChange(BaseModel):
 RIPPLE_PROMPT = """The student describes a change to their schedule, or asks "what if". Match it to their agenda.
 Return:
 - kind: "move" (an existing item changes time), "new" (something added), "cancel" (an existing item is dropped)
-- target_id: the id of the agenda item it refers to, or null if it's new or you can't tell
+- target_id: the id of the agenda item it refers to (pick the closest match), or null if it's new
 - title: short name of the commitment
-- start / end: ISO 8601 with UTC offset, time zone {tz}. Null if they gave no day or time at all.
+- start / end: ISO 8601 with UTC offset, time zone {tz}. If they gave no day or time, pick the most sensible
+  one yourself (the next free slot that suits it, e.g. an evening for a social plan) and say so in assumptions.
+  Null only for a cancellation.
 - hypothetical: true for "what if…" or "thinking about…", false for something that actually changed
 - stated: the facts they actually said, as short phrases
 - assumptions: everything you filled in that they did NOT say, e.g. "Assumed 'evening' means 6 PM",
@@ -706,6 +708,65 @@ Agenda for the next 7 days:
 {agenda}
 
 What they said: {change}"""
+
+
+class RipplePick(BaseModel):
+    conflict_id: str
+    option: int        # index into that conflict's free slots; -1 keeps it where it is
+
+
+class RippleDecision(BaseModel):
+    verdict: str
+    picks: list[RipplePick]
+
+
+DECIDE_PROMPT = """You are the student's personal assistant. Their schedule just changed and the app has already
+worked out, from real data, what it collides with and which free slots exist. Decide what to do.
+
+Rules:
+- Decide. Never ask a question or ask them to choose. They can override you later.
+- verdict: 2-3 short, plain sentences: what you'd do and why, grounded in their week below (deadlines,
+  workouts, energy, money, what they've told you). Start with the decision, e.g. "Move Gym to Thursday 6 PM."
+  If nothing clashes, say it fits and add one useful note if there is one. Never invent facts.
+- picks: for every movable conflict, the index of the slot you chose, or -1 to leave it where it is.
+
+The change: {change}
+Assumptions already made: {assumptions}
+Conflicts:
+{conflicts}
+Money: {money}
+
+Their week:
+{context}
+
+What you remember about them:
+{memories}"""
+
+
+async def _decide(zone: ZoneInfo, text: str, change: dict, conflicts: list[dict], money: dict | None) -> RippleDecision | None:
+    """Gemini picks slots and explains the call, using the same context Ask has.
+    Best effort: on failure the app keeps the first free slot for each conflict."""
+    def when(a, b):
+        return f"{a.astimezone(zone):%a %b %d %H:%M}-{b.astimezone(zone):%H:%M}"
+    listing = "\n".join(
+        f"- id={c['id']} | {c['title']} | {when(c['start'], c['end'])} | "
+        + ("movable, free slots: " + "; ".join(f"[{i}] {when(o['start'], o['end'])}" for i, o in enumerate(c["options"]))
+           if c["movable"] else "fixed (on their calendar)")
+        for c in conflicts) or "- none"
+    try:
+        memories = await search_memories(text, limit=6)
+        resp = await generate(
+            contents=DECIDE_PROMPT.format(
+                change=text, assumptions="; ".join(change["assumptions"]) or "none", conflicts=listing,
+                money=(f"costs ${money['cost']:.2f}" + (f", would leave ${money['after']:.2f} of this week's budget"
+                                                        if money.get("after") is not None else "")) if money else "none stated",
+                context=_context(zone), memories=bullets(memories)),
+            config={"response_mime_type": "application/json", "response_schema": RippleDecision},
+        )
+        return resp.parsed
+    except Exception as e:   # the computed ripple is still useful without the advice
+        log.warning("ripple decision failed: %s", _why(e))
+        return None
 
 
 def _block(a: AgendaIn) -> rp.Block | None:
@@ -744,34 +805,41 @@ async def ripple_mode(body: RippleIn) -> dict:
 
     target = agenda.get(p.target_id) if p.target_id else None
     assumptions = list(p.assumptions)
-    clarify = None
     change = None
     if p.kind == "cancel" and target is None:
-        clarify = "Which commitment is cancelled? I couldn't match it to your agenda."
+        assumptions.append(f"Couldn't find “{p.title}” on your agenda, so nothing else moves")
     elif p.kind != "cancel":
-        if p.start is None:
-            clarify = f"When is “{p.title}”? Add a day and time."
-        else:
-            start = p.start if p.start.tzinfo else p.start.replace(tzinfo=zone)
-            end = p.end if p.end and p.end.tzinfo else (p.end.replace(tzinfo=zone) if p.end else None)
-            if end is None or end <= start:
-                if target and target.end and target.end > target.start:
-                    length = target.end - target.start
-                    assumptions.append(f"Assumed it still lasts {_span(length)}, like before")
-                else:
-                    length = timedelta(hours=1)
-                    assumptions.append("Assumed it lasts 1 hour (no end time given)")
-                end = start + length
-            change = rp.Block("change", p.title, start, end, "change")
+        if p.start is None:   # the model was told to pick a time; this is the last resort, never a question
+            p.start = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+            assumptions.append(f"No time given, so assumed {p.start:%a %-I %p}")
+        start = p.start if p.start.tzinfo else p.start.replace(tzinfo=zone)
+        end = p.end if p.end and p.end.tzinfo else (p.end.replace(tzinfo=zone) if p.end else None)
+        if end is None or end <= start:
+            if target and target.end and target.end > target.start:
+                length = target.end - target.start
+                assumptions.append(f"Assumed it still lasts {_span(length)}, like before")
+            else:
+                length = timedelta(hours=1)
+                assumptions.append("Assumed it lasts 1 hour (no end time given)")
+            end = start + length
+        change = rp.Block("change", p.title, start, end, "change")
 
     replaced = target.id if target and p.kind in ("move", "cancel") else None
     plans = [rp.Plan(x.id, x.name, set(x.weekdays), x.hour, x.minute, x.duration, dict(x.moves))
              for x in body.plans]
     calendar = [b for b in map(_block, body.agenda) if b]
-    conflicts = rp.ripple(change, replaced, calendar, plans, now, zone) if not clarify else []
+    conflicts = rp.ripple(change, replaced, calendar, plans, now, zone)
+    money = _planned_cost(zone, p.cost, change.start if change else now)
+    summary = {"assumptions": assumptions}
+    decision = await _decide(zone, body.change, summary, conflicts, money)
+    movable = {c["id"]: len(c["options"]) for c in conflicts if c["movable"]}
+    picks = {k.conflict_id: k.option for k in (decision.picks if decision else [])
+             if k.conflict_id in movable and -1 <= k.option < movable[k.conflict_id]}
     return {
         "hypothetical": p.hypothetical,
-        "clarify": clarify,
+        "clarify": None,                      # Ripple decides; it never asks
+        "verdict": decision.verdict.strip() if decision and decision.verdict.strip() else None,
+        "picks": picks,
         "change": {
             "kind": p.kind, "title": p.title,
             "start": change.start if change else None, "end": change.end if change else None,
@@ -780,7 +848,7 @@ async def ripple_mode(body: RippleIn) -> dict:
             "stated": p.stated, "assumptions": assumptions,
         },
         "conflicts": conflicts,
-        "money": _planned_cost(zone, p.cost, change.start if change else now),
+        "money": money,
     }
 
 

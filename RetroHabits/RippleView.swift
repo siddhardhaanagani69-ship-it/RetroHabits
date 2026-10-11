@@ -20,6 +20,8 @@ struct RippleView: View {
     @State private var applied = false
     @State private var shown = 0          // how many graph nodes have rippled in
     @State private var addingToCalendar = false
+    @StateObject private var dictation = Dictation()
+    @StateObject private var voice = SpeechPlayer()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var plannedHabits: Int { habits.habits.filter(\.hasReminder).count }
@@ -30,6 +32,21 @@ struct RippleView: View {
             if let result {
                 graph(result).padding(.top, 14)
             }
+        }
+        .onChange(of: dictation.transcript) { _, heard in
+            if dictation.isListening { draft = heard }   // live transcript in the field
+        }
+        .onAppear {
+            // You paused: check the ripple of what was heard.
+            dictation.onAutoStop = { heard in
+                guard !heard.isEmpty, !isLoading else { return }
+                draft = heard
+                Task { await run() }
+            }
+        }
+        .onDisappear {
+            _ = dictation.stop()
+            voice.stop()
         }
         .sheet(isPresented: $addingToCalendar) {
             if let change = result?.change, let start = change.start {
@@ -47,17 +64,31 @@ struct RippleView: View {
                 Text("Ripple Mode")
                     .font(.heading(22))
                     .foregroundStyle(Palette.red)
-                Text("Tell me what changed — or ask “what if…”. Tap the keyboard mic to say it.")
+                Text("Say or type what changed, or ask “what if…”. I'll work out the rest and tell you what I'd do.")
                     .font(.bodyRegular(12))
-                    .foregroundStyle(Palette.ink.opacity(0.65))
+                    .foregroundStyle(Palette.muted)
                     .fixedSize(horizontal: false, vertical: true)
-                TextField("My lab moved to Friday evening", text: $draft, axis: .vertical)
-                    .font(.bodyMedium(15))
-                    .foregroundStyle(Palette.ink)
-                    .lineLimit(1...3)
-                    .padding(10)
-                    .background(Palette.paper)
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.hairline, lineWidth: 1))
+                HStack(alignment: .bottom, spacing: 8) {
+                    Button { Task { await toggleMic() } } label: {
+                        Image(systemName: dictation.isListening ? "stop.fill" : "mic.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .buttonStyle(FilledButtonStyle(fill: dictation.isListening ? Palette.red : Palette.fill,
+                                                   textColor: dictation.isListening ? .white : Palette.accent))
+                    .disabled(isLoading)
+                    .accessibilityLabel(dictation.isListening ? "Stop and check the ripple" : "Say what changed")
+                    TextField(dictation.isListening ? "Listening…" : "My lab moved to Friday evening", text: $draft, axis: .vertical)
+                        .font(.bodyRegular(16))
+                        .foregroundStyle(Palette.ink)
+                        .lineLimit(1...5)
+                        .padding(.vertical, 11).padding(.horizontal, 12)
+                        .frame(minHeight: 44)
+                        .background(Palette.paper, in: .rect(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Palette.hairline, lineWidth: 1))
+                }
+                if let micError = dictation.error {
+                    Text(micError).font(.footnote).foregroundStyle(Palette.red)
+                }
                 Button {
                     Task { await run() }
                 } label: {
@@ -87,19 +118,24 @@ struct RippleView: View {
     @ViewBuilder
     private func graph(_ r: AssistantService.RippleResult) -> some View {
         VStack(alignment: .leading, spacing: 0) {
+            let o = r.verdict == nil ? 0 : 1   // later nodes shift down one when there's a verdict
             node(0) { changeNode(r) }
+            if let verdict = r.verdict {
+                connector(1)
+                node(1) { verdictNode(verdict) }
+            }
 
             if let clarify = r.clarify {
-                connector(1)
-                node(1) {
+                connector(1 + o)
+                node(1 + o) {
                     nodeCard(fill: Palette.yellow) {
                         Text("Need one more detail").font(.heading(16)).foregroundStyle(Palette.ink)
                         Text(clarify).font(.bodyMedium(14)).foregroundStyle(Palette.ink)
                     }
                 }
             } else if r.conflicts.isEmpty {
-                connector(1)
-                node(1) {
+                connector(1 + o)
+                node(1 + o) {
                     nodeCard {
                         Text("No conflicts").font(.heading(18)).foregroundStyle(Palette.accent)
                         Text(r.change.kind == "cancel"
@@ -110,11 +146,49 @@ struct RippleView: View {
                 }
             } else {
                 ForEach(Array(r.conflicts.enumerated()), id: \.element.id) { index, conflict in
-                    connector(index + 1)
-                    node(index + 1) { conflictNode(conflict) }
+                    connector(index + 1 + o)
+                    node(index + 1 + o) { conflictNode(conflict) }
                 }
-                connector(r.conflicts.count + 1)
-                node(r.conflicts.count + 1) { planNode(r) }
+                connector(r.conflicts.count + 1 + o)
+                node(r.conflicts.count + 1 + o) { planNode(r) }
+            }
+        }
+    }
+
+    /// Ripple's decision, in plain words, with a Listen button.
+    private func verdictNode(_ verdict: String) -> some View {
+        nodeCard {
+            HStack {
+                tag("What I'd do", Palette.accent)
+                Spacer()
+                Button {
+                    Task {
+                        if voice.state == .playing { voice.stop() }
+                        else { await voice.play { try await AssistantService.speech(for: verdict) } }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        switch voice.state {
+                        case .loading: ProgressView().controlSize(.small).tint(Palette.accent)
+                        case .playing: Image(systemName: "stop.fill")
+                        case .idle: Image(systemName: "play.fill")
+                        }
+                        Text(voice.state == .playing ? "Stop" : voice.state == .loading ? "Loading…" : "Listen")
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.accent)
+                    .frame(minHeight: 44)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .disabled(voice.state == .loading)
+            }
+            Text(verdict)
+                .font(.bodyMedium(16))
+                .foregroundStyle(Palette.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            if let error = voice.error {
+                Text(error).font(.footnote).foregroundStyle(Palette.red)
             }
         }
     }
@@ -223,6 +297,7 @@ struct RippleView: View {
     // MARK: Actions
 
     private func run() async {
+        guard !isLoading else { return }   // the mic's auto-stop and a tap can both ask
         isLoading = true
         error = nil
         defer { isLoading = false }
@@ -230,11 +305,15 @@ struct RippleView: View {
             let r = try await AssistantService.ripple(draft, agenda: agenda.items, habits: habits.habits)
             applied = false
             shown = 0
+            // Ripple's own picks; the first free slot when it didn't choose. -1 means leave it.
             choice = Dictionary(uniqueKeysWithValues: r.conflicts.compactMap { c in
-                c.options.first.map { (c.id, $0) }
+                if let pick = r.picks?[c.id] {
+                    return c.options.indices.contains(pick) ? (c.id, c.options[pick]) : nil
+                }
+                return c.options.first.map { (c.id, $0) }
             })
             result = r
-            let steps = r.conflicts.count + 2
+            let steps = r.conflicts.count + 3
             if reduceMotion {
                 shown = steps
             } else {
@@ -246,6 +325,18 @@ struct RippleView: View {
             }
         } catch {
             self.error = error.localizedDescription
+        }
+    }
+
+    /// First tap listens; second tap checks the ripple of what was heard.
+    private func toggleMic() async {
+        if dictation.isListening {
+            let heard = dictation.stop()
+            if !heard.isEmpty { draft = heard }
+            if !draft.trimmingCharacters(in: .whitespaces).isEmpty, !isLoading { await run() }
+        } else {
+            voice.stop()
+            await dictation.start()
         }
     }
 

@@ -159,6 +159,10 @@ enum AssistantService {
         }
         let hypothetical: Bool
         let clarify: String?
+        /// Ripple's call on what to do, written with the same context Ask has.
+        let verdict: String?
+        /// The free slot it chose for each movable conflict (index into options; -1 = leave it).
+        let picks: [String: Int]?
         let change: Change
         let conflicts: [Conflict]
         /// A stated cost and what it would leave of that week's budget. Planned, never spent.
