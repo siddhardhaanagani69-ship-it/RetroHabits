@@ -7,6 +7,8 @@ final class SpeechPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     enum State { case idle, loading, playing }
 
     @Published private(set) var state: State = .idle
+    /// Why the last play failed (server down, quota, audio), for the screen to show.
+    @Published var error: String?
     private var player: AVAudioPlayer?
 
     /// Tap behaviour for a play button: stops if something is playing.
@@ -17,6 +19,7 @@ final class SpeechPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     /// Plays new audio, cutting off whatever was playing.
     func play(_ load: () async throws -> Data) async {
         stop()
+        error = nil
         state = .loading
         do {
             let data = try await load()
@@ -29,6 +32,7 @@ final class SpeechPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
             self.player = player
             state = .playing
         } catch {
+            self.error = error.localizedDescription
             state = .idle
         }
     }
@@ -47,6 +51,7 @@ final class SpeechPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
 struct BriefingButton: View {
     @StateObject private var player = SpeechPlayer()
+    @State private var showingError = false
 
     var body: some View {
         Button {
@@ -61,5 +66,10 @@ struct BriefingButton: View {
         .buttonStyle(FilledButtonStyle(fill: player.state == .playing ? Palette.red : Palette.fill,
                                       textColor: player.state == .playing ? .white : Palette.blue))
         .accessibilityLabel(player.state == .playing ? "Stop briefing" : "Play today's briefing")
+        .alert("Couldn't play the briefing", isPresented: $showingError) {
+        } message: {
+            Text(player.error ?? "")
+        }
+        .onChange(of: player.error) { _, error in showingError = error != nil }
     }
 }

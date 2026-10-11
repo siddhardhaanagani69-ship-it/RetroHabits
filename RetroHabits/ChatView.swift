@@ -50,6 +50,8 @@ struct ChatView: View {
                                         Label("Listen", systemImage: "play.fill")
                                             .font(.caption.weight(.semibold))
                                             .foregroundStyle(Palette.blue)
+                                            .frame(minHeight: 44)
+                                            .contentShape(.rect)
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -62,7 +64,7 @@ struct ChatView: View {
                                 Text("Thinking…").font(.bodyMedium(13)).foregroundStyle(Palette.ink.opacity(0.6))
                             }
                         }
-                        if let error = error ?? dictation.error {
+                        if let error = error ?? dictation.error ?? voice.error {
                             Text(error)
                                 .font(.bodyMedium(13))
                                 .foregroundStyle(Palette.red)
@@ -134,6 +136,7 @@ struct ChatView: View {
             }
             .buttonStyle(FilledButtonStyle(fill: Palette.red, textColor: .white))
             .disabled(isSending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .accessibilityLabel("Send")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)

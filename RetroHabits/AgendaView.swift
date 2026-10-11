@@ -49,6 +49,7 @@ struct AgendaView: View {
                     }
                     .buttonStyle(FilledButtonStyle())
                     .disabled(agenda.isLoading)
+                    .accessibilityLabel(agenda.isLoading ? "Refreshing" : "Refresh")
                 }
 
                 Picker("Mode", selection: $mode.animation(.easeInOut(duration: 0.2))) {

@@ -129,14 +129,14 @@ struct LearnView: View {
                     .overlay(Capsule().stroke(Palette.hairline, lineWidth: 1))
             }
 
-            circleButton("arrow.clockwise", tint: Palette.panel) {
+            circleButton("Refresh", symbol: "arrow.clockwise", tint: Palette.panel) {
                 Task {
                     await store.refresh()
                     resyncOrder()
                 }
             }
 
-            circleButton("line.3.horizontal.decrease",
+            circleButton("Filters", symbol: "line.3.horizontal.decrease",
                          tint: store.showSavedOnly ? Palette.yellow : Palette.panel) {
                 showingFilters = true
             }
@@ -145,7 +145,7 @@ struct LearnView: View {
         .padding(.top, 6)
     }
 
-    private func circleButton(_ symbol: String, tint: Color, action: @escaping () -> Void) -> some View {
+    private func circleButton(_ title: String, symbol: String, tint: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 14, weight: .black))
@@ -153,8 +153,11 @@ struct LearnView: View {
                 .frame(width: 34, height: 34)
                 .background(Circle().fill(tint))
                 .overlay(Circle().stroke(Palette.hairline, lineWidth: 1))
+                .frame(width: 44, height: 44)   // 44pt tap target around the 34pt circle
+                .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(title)
     }
 }
 

@@ -141,6 +141,13 @@ struct HabitsView: View {
         } onPressingChanged: { pressing in
             pressingHabitID = pressing ? habit.id : nil
         }
+        // The gestures above are invisible to VoiceOver and Switch Control; expose
+        // the same two actions so the app's main task works without a long press.
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Double-tap to edit. Swipe up or down for more actions.")
+        .accessibilityAction(named: isDone ? "Mark not done" : "Mark done") { complete(habit, wasDone: isDone) }
+        .accessibilityAction(named: "Edit") { editingHabit = habit }
         .contextMenu {
             Button {
                 editingHabit = habit

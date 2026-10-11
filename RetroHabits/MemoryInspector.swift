@@ -131,6 +131,8 @@ struct WhyButton: View {
                 .padding(.horizontal, 8).padding(.vertical, 3)
                 .background(Capsule().fill(Palette.panel))
                 .overlay(Capsule().stroke(Palette.hairline, lineWidth: 1))
+                .frame(minHeight: 44)   // the pill stays small; the tap area meets 44pt
+                .contentShape(.rect)
         }
         .buttonStyle(.plain)
     }
