@@ -32,7 +32,6 @@ struct AgendaView: View {
     }()
 
     var body: some View {
-        ScrollViewReader { proxy in
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
@@ -74,11 +73,6 @@ struct AgendaView: View {
             .padding(.top, 12)
             .padding(.bottom, 24)
         }
-        // Picking a date below the list jumps back up to that day's plan.
-        .onChange(of: selectedDay) { _, _ in
-            withAnimation { proxy.scrollTo("day-plan", anchor: .top) }
-        }
-        }
         .refreshable { await agenda.refresh() }
         .task {
             if agenda.lastRefreshed == nil {
@@ -94,6 +88,8 @@ struct AgendaView: View {
 
     @ViewBuilder
     private var scheduleContent: some View {
+        DayStrip(selected: $selectedDay, busyDays: Set(agenda.visibleItems.map { Calendar.current.startOfDay(for: $0.start) }))
+
         ForEach(agenda.errors, id: \.self) { error in
             Card(fill: Palette.yellow) {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
@@ -139,8 +135,6 @@ struct AgendaView: View {
 
         dayPlan
 
-        DayStrip(selected: $selectedDay, busyDays: Set(agenda.visibleItems.map { Calendar.current.startOfDay(for: $0.start) }))
-
         InboxPanel()
     }
 
@@ -154,7 +148,7 @@ struct AgendaView: View {
             .filter { $0.isScheduled(on: selectedDay) }
             .sorted { ($0.reminderHour ?? 99, $0.reminderMinute ?? 0) < ($1.reminderHour ?? 99, $1.reminderMinute ?? 0) }
 
-        SectionHeader(text: dayLabel(selectedDay)).id("day-plan")
+        SectionHeader(text: dayLabel(selectedDay))
 
         if dayItems.isEmpty && dayHabits.isEmpty && !agenda.isLoading {
             Card {
@@ -455,7 +449,7 @@ struct EventDetailView: View {
 
 // MARK: - Date circles
 
-/// The next two weeks as tappable circles; a dot marks days with something on them.
+/// The next two weeks as tappable circles at the top of Schedule; a dot marks days with something on them.
 struct DayStrip: View {
     @Binding var selected: Date
     let busyDays: Set<Date>
